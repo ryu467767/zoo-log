@@ -1532,6 +1532,19 @@ header {
   background: rgba(45,106,79,.10);
   color: #2d6a4f;
 }
+.drawer-divider {
+  border: none;
+  border-top: 1px solid rgba(0,0,0,.08);
+  margin: 8px 0;
+}
+.drawer-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: #999;
+  padding: 4px 16px 2px;
+  text-transform: uppercase;
+}
 
 /* ===== Fix btn-want hover bug ===== */
 .btn-want:hover:not(.active) {
