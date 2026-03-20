@@ -18,7 +18,9 @@ services:
       - key: DEBUG_ERRORS
         value: "1"
       - key: BUILD
-        value: "2026-03-18-01"
+        value: "2026-03-21-01"
+      - key: PYTHON_VERSION
+        value: "3.12.8"
       - key: DB_DIR
         value: /data
     disk:
