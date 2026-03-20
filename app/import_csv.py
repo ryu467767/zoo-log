@@ -82,11 +82,12 @@ def import_csv(csv_path: str) -> int:
                     )
                 ).first()
                 if exists:
-                    # 情報更新したい場合はここで上書き可（いまはスキップ）
-                    continue
-
-                db.add(Zoo(**data))
-                inserted += 1
+                    for k, v in data.items():
+                        setattr(exists, k, v)
+                    db.add(exists)
+                else:
+                    db.add(Zoo(**data))
+                    inserted += 1
 
             db.commit()
 
