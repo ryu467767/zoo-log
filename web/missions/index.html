@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ミッション｜全国動物園スタンプラリー</title>
+  <meta name="description" content="全国動物園スタンプラリーのミッションページ。訪問数バッジ・地域制覇・都道府県制覇・動物バッジの達成状況を確認できます。">
+  <link rel="canonical" href="https://zoo-log.onrender.com/missions/">
+  <link rel="stylesheet" href="/styles.css?v=20260318-1" />
+  <style>
+    .missions-wrap { max-width: 700px; margin: 24px auto; padding: 0 16px; }
+    .missions-title { font-size: 22px; font-weight: bold; margin-bottom: 6px; }
+    .missions-sub  { font-size: 13px; color: #666; margin-bottom: 20px; }
+    .missions-login-msg { background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px; font-size: 14px; }
+    .missions-login-msg a { color: #2d6a4f; font-weight: bold; }
+    .missions-section { margin-bottom: 28px; }
+    .missions-section h2 { font-size: 15px; font-weight: bold; color: #444; border-bottom: 2px solid #9ae6b4; padding-bottom: 4px; margin-bottom: 12px; }
+    .badge-list { display: flex; flex-direction: column; gap: 10px; }
+    .badge-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; border: 1px solid #e0e0e0; background: #fafafa; }
+    .badge-row.earned { background: #fffde7; border-color: #e6c800; }
+    .badge-row.earned.pref { background: #f1f8e9; border-color: #66bb6a; }
+    .badge-row.earned.region { background: #e3f2fd; border-color: #42a5f5; }
+    .badge-row.earned.animal { background: #f1f8e9; border-color: #aed581; }
+    .badge-icon { font-size: 26px; flex-shrink: 0; width: 36px; text-align: center; filter: grayscale(1); opacity: 0.4; }
+    .badge-row.earned .badge-icon { filter: none; opacity: 1; }
+    .badge-info { flex: 1; }
+    .badge-name { font-weight: bold; font-size: 14px; color: #333; }
+    .badge-row.earned .badge-name { color: #5a4a00; }
+    .badge-row.earned.pref .badge-name { color: #1b5e20; }
+    .badge-row.earned.region .badge-name { color: #0d47a1; }
+    .badge-row.earned.animal .badge-name { color: #33691e; }
+    .badge-desc { font-size: 12px; color: #888; margin-top: 2px; }
+    .badge-status { font-size: 12px; font-weight: bold; color: #bbb; flex-shrink: 0; }
+    .badge-row.earned .badge-status { color: #e6c800; }
+    .badge-row.earned.pref .badge-status { color: #43a047; }
+    .badge-row.earned.region .badge-status { color: #1565c0; }
+    .badge-row.earned.animal .badge-status { color: #558b2f; }
+    .pref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+    .pref-item { padding: 7px 10px; border-radius: 6px; border: 1px solid #e0e0e0; background: #fafafa; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+    .pref-item.earned { background: #f1f8e9; border-color: #66bb6a; }
+    .pref-item.earned .pref-name { font-weight: bold; color: #1b5e20; }
+    .pref-progress { font-size: 11px; color: #999; }
+    .pref-item.earned .pref-progress { color: #43a047; font-weight: bold; }
+    .loading { padding: 24px; text-align: center; color: #888; }
+
+    .badge-row { border-left: 4px solid #e0e0e0; }
+    .badge-row.earned { border-left-color: #e6c800; }
+    .badge-row.earned.pref { border-left-color: #66bb6a; }
+    .badge-row.earned.region { border-left-color: #42a5f5; }
+    .badge-row.earned.animal { border-left-color: #aed581; }
+    .badge-icon {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: #f0f0f0; display: flex; align-items: center; justify-content: center;
+    }
+    .badge-row.earned .badge-icon { background: rgba(255,215,0,0.18); }
+    .badge-row.earned.pref .badge-icon { background: rgba(102,187,106,0.18); }
+    .badge-row.earned.region .badge-icon { background: rgba(66,165,245,0.18); }
+    .badge-row.earned.animal .badge-icon { background: rgba(174,213,129,0.25); }
+
+    .animal-group { border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+    .animal-group-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #fafafa; cursor: default; }
+    .animal-group.has-earned .animal-group-header { background: #f1f8e9; }
+    .animal-group-icon { font-size: 22px; flex-shrink: 0; }
+    .animal-group-name { font-weight: bold; font-size: 14px; flex: 1; color: #555; }
+    .animal-group.has-earned .animal-group-name { color: #33691e; }
+    .animal-stars { letter-spacing: 1px; font-size: 14px; color: #66bb6a; flex-shrink: 0; }
+    .animal-current { font-size: 12px; color: #bbb; flex-shrink: 0; }
+    .animal-group.has-earned .animal-current { color: #558b2f; font-weight: bold; }
+    .animal-tier-list { background: #fff; padding: 4px 12px 8px; }
+    .animal-tier-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; border-top: 1px solid #f5f5f5; color: #bbb; }
+    .animal-tier-item.earned { color: #33691e; }
+    .tier-dot { width: 8px; height: 8px; border-radius: 50%; background: #e0e0e0; flex-shrink: 0; }
+    .animal-tier-item.earned .tier-dot { background: #aed581; }
+    .tier-name { font-weight: bold; min-width: 90px; }
+    .tier-req-text { font-size: 11px; opacity: 0.75; }
+
+    .pref-item { overflow: hidden; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><a href="/" style="color:inherit;text-decoration:none;">全国動物園スタンプラリー</a></h1>
+    <div class="userbox" id="userbox">
+      <button id="menuBtn" class="hamburger-btn" aria-label="メニューを開く">☰</button>
+    </div>
+  </header>
+
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+  <nav id="drawer" class="drawer" aria-hidden="true">
+    <button id="drawerClose" class="drawer-close" aria-label="閉じる">×</button>
+    <div class="drawer__login">
+      <span id="loginStatus" class="drawer-login-status"></span>
+      <button class="linklike" id="googleLogin" type="button">Googleでログイン</button>
+      <button class="linklike" id="logoutBtn" type="button" style="display:none;">ログアウト</button>
+    </div>
+    <div class="drawer__inner">
+      <a href="/" class="drawer-link">トップページ</a>
+      <a href="/about/" class="drawer-link">このアプリについて</a>
+      <a href="/missions/" class="drawer-link">🏆 ミッション</a>
+      <a id="galleryBtn" href="/gallery/" class="drawer-link" style="display:none;">📷 マイ写真ギャラリー</a>
+      <a href="/contact/" class="drawer-link">お問い合わせ</a>
+      <a href="/privacy/" class="drawer-link">プライバシーポリシー</a>
+    </div>
+  </nav>
+
+  <div class="missions-wrap">
+    <div class="missions-title">🏆 ミッション</div>
+    <div class="missions-sub">達成バッジと制覇進捗を確認できます</div>
+
+    <div id="loginMsg" class="missions-login-msg" style="display:none;">
+      <a href="/login">Googleでログイン</a>すると訪問記録に基づいた達成状況が表示されます
+    </div>
+
+    <div id="content"><div class="loading">読み込み中...</div></div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <a href="/contact/">お問い合わせ</a>
+      <a href="/privacy/">プライバシーポリシー</a>
+      <span>© 2025 全国動物園スタンプラリー</span>
+    </div>
+  </footer>
+
+  <script src="/nav.js?v=20260318-1"></script>
+  <script>
+  (function() {
+    var REGION_ORDER = ["北海道","東北","関東","中部","近畿","中国","四国","九州・沖縄"];
+    var REGION_BY_PREF = {
+      "北海道":"北海道",
+      "青森県":"東北","岩手県":"東北","宮城県":"東北","秋田県":"東北","山形県":"東北","福島県":"東北",
+      "茨城県":"関東","栃木県":"関東","群馬県":"関東","埼玉県":"関東","千葉県":"関東","東京都":"関東","神奈川県":"関東",
+      "新潟県":"中部","富山県":"中部","石川県":"中部","福井県":"中部","山梨県":"中部","長野県":"中部","岐阜県":"中部","静岡県":"中部","愛知県":"中部",
+      "三重県":"近畿","滋賀県":"近畿","京都府":"近畿","大阪府":"近畿","兵庫県":"近畿","奈良県":"近畿","和歌山県":"近畿",
+      "鳥取県":"中国","島根県":"中国","岡山県":"中国","広島県":"中国","山口県":"中国",
+      "徳島県":"四国","香川県":"四国","愛媛県":"四国","高知県":"四国",
+      "福岡県":"九州・沖縄","佐賀県":"九州・沖縄","長崎県":"九州・沖縄","熊本県":"九州・沖縄","大分県":"九州・沖縄","宮崎県":"九州・沖縄","鹿児島県":"九州・沖縄","沖縄県":"九州・沖縄"
+    };
+    function regionOf(pref) { return REGION_BY_PREF[pref] || "その他"; }
+
+    var PREF_ORDER = [
+      "北海道",
+      "青森県","岩手県","宮城県","秋田県","山形県","福島県",
+      "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
+      "新潟県","富山県","石川県","福井県","山梨県","長野県",
+      "岐阜県","静岡県","愛知県","三重県",
+      "滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
+      "鳥取県","島根県","岡山県","広島県","山口県",
+      "徳島県","香川県","愛媛県","高知県",
+      "福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"
+    ];
+
+    var VISIT_BADGES = [
+      { id: "v10",  label: "10園達成",  icon: "🥉", req: "10園訪問",       check: function(v) { return v >= 10; } },
+      { id: "v30",  label: "30園達成",  icon: "🥈", req: "30園訪問",       check: function(v) { return v >= 30; } },
+      { id: "v50",  label: "50園達成",  icon: "🥇", req: "50園訪問",       check: function(v) { return v >= 50; } },
+      { id: "v100", label: "100園達成", icon: "🏆", req: "100園訪問",      check: function(v) { return v >= 100; } },
+      { id: "all",  label: "全国制覇",  icon: "👑", req: "全動物園を制覇", check: function(v, t) { return t > 0 && v >= t; } },
+    ];
+
+    var ANIMAL_BADGES = [
+      // ゾウ
+      { icon: "🐘", label: "ゾウ好き",       req: "ゾウのいる動物園を3園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_elephant; }).length >= 3; } },
+      { icon: "🐘", label: "ゾウ大好き",     req: "ゾウのいる動物園を5園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_elephant; }).length >= 5; } },
+      { icon: "🐘", label: "ゾウマスター",   req: "ゾウのいる動物園を10園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_elephant; }).length >= 10; } },
+      { icon: "🐘", label: "ゾウ制覇",       req: "ゾウのいる全動物園を制覇",
+        check: function(items) { var w = items.filter(function(x) { return !x.is_closed && x.has_elephant; }); return w.length > 0 && w.every(function(x) { return x.visited; }); } },
+      // キリン
+      { icon: "🦒", label: "キリン好き",     req: "キリンのいる動物園を3園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_giraffe; }).length >= 3; } },
+      { icon: "🦒", label: "キリン大好き",   req: "キリンのいる動物園を5園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_giraffe; }).length >= 5; } },
+      { icon: "🦒", label: "キリンマスター", req: "キリンのいる動物園を10園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_giraffe; }).length >= 10; } },
+      { icon: "🦒", label: "キリン制覇",     req: "キリンのいる全動物園を制覇",
+        check: function(items) { var w = items.filter(function(x) { return !x.is_closed && x.has_giraffe; }); return w.length > 0 && w.every(function(x) { return x.visited; }); } },
+      // ライオン
+      { icon: "🦁", label: "ライオン好き",     req: "ライオンのいる動物園を3園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_lion; }).length >= 3; } },
+      { icon: "🦁", label: "ライオン大好き",   req: "ライオンのいる動物園を5園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_lion; }).length >= 5; } },
+      { icon: "🦁", label: "ライオンマスター", req: "ライオンのいる動物園を10園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_lion; }).length >= 10; } },
+      { icon: "🦁", label: "ライオン制覇",     req: "ライオンのいる全動物園を制覇",
+        check: function(items) { var w = items.filter(function(x) { return !x.is_closed && x.has_lion; }); return w.length > 0 && w.every(function(x) { return x.visited; }); } },
+      // トラ
+      { icon: "🐯", label: "トラ好き",     req: "トラのいる動物園を3園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_tiger; }).length >= 3; } },
+      { icon: "🐯", label: "トラ大好き",   req: "トラのいる動物園を5園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_tiger; }).length >= 5; } },
+      { icon: "🐯", label: "トラマスター", req: "トラのいる動物園を10園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_tiger; }).length >= 10; } },
+      { icon: "🐯", label: "トラ制覇",     req: "トラのいる全動物園を制覇",
+        check: function(items) { var w = items.filter(function(x) { return !x.is_closed && x.has_tiger; }); return w.length > 0 && w.every(function(x) { return x.visited; }); } },
+      // パンダ
+      { icon: "🐼", label: "パンダ好き",   req: "パンダのいる動物園を3園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_panda; }).length >= 3; } },
+      { icon: "🐼", label: "パンダ大好き", req: "パンダのいる動物園を5園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_panda; }).length >= 5; } },
+      { icon: "🐼", label: "パンダ制覇",   req: "パンダのいる全動物園を制覇",
+        check: function(items) { var w = items.filter(function(x) { return !x.is_closed && x.has_panda; }); return w.length > 0 && w.every(function(x) { return x.visited; }); } },
+      // ゴリラ
+      { icon: "🦍", label: "ゴリラ好き",   req: "ゴリラのいる動物園を3園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_gorilla; }).length >= 3; } },
+      { icon: "🦍", label: "ゴリラ大好き", req: "ゴリラのいる動物園を5園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_gorilla; }).length >= 5; } },
+      { icon: "🦍", label: "ゴリラ制覇",   req: "ゴリラのいる全動物園を制覇",
+        check: function(items) { var w = items.filter(function(x) { return !x.is_closed && x.has_gorilla; }); return w.length > 0 && w.every(function(x) { return x.visited; }); } },
+      // カバ
+      { icon: "🦛", label: "カバ好き",   req: "カバのいる動物園を3園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_hippo; }).length >= 3; } },
+      { icon: "🦛", label: "カバ大好き", req: "カバのいる動物園を5園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_hippo; }).length >= 5; } },
+      { icon: "🦛", label: "カバ制覇",   req: "カバのいる全動物園を制覇",
+        check: function(items) { var w = items.filter(function(x) { return !x.is_closed && x.has_hippo; }); return w.length > 0 && w.every(function(x) { return x.visited; }); } },
+      // コアラ
+      { icon: "🐨", label: "コアラ好き",   req: "コアラのいる動物園を3園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_koala; }).length >= 3; } },
+      { icon: "🐨", label: "コアラ大好き", req: "コアラのいる動物園を5園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_koala; }).length >= 5; } },
+      { icon: "🐨", label: "コアラ制覇",   req: "コアラのいる全動物園を制覇",
+        check: function(items) { var w = items.filter(function(x) { return !x.is_closed && x.has_koala; }); return w.length > 0 && w.every(function(x) { return x.visited; }); } },
+      // ホッキョクグマ
+      { icon: "🐻‍❄️", label: "ホッキョクグマ好き",   req: "ホッキョクグマのいる動物園を3園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_polar_bear; }).length >= 3; } },
+      { icon: "🐻‍❄️", label: "ホッキョクグマ大好き", req: "ホッキョクグマのいる動物園を5園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_polar_bear; }).length >= 5; } },
+      { icon: "🐻‍❄️", label: "ホッキョクグマ制覇",   req: "ホッキョクグマのいる全動物園を制覇",
+        check: function(items) { var w = items.filter(function(x) { return !x.is_closed && x.has_polar_bear; }); return w.length > 0 && w.every(function(x) { return x.visited; }); } },
+      // レッサーパンダ
+      { icon: "🦊", label: "レッサーパンダ好き",     req: "レッサーパンダのいる動物園を3園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_red_panda; }).length >= 3; } },
+      { icon: "🦊", label: "レッサーパンダ大好き",   req: "レッサーパンダのいる動物園を5園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_red_panda; }).length >= 5; } },
+      { icon: "🦊", label: "レッサーパンダマスター", req: "レッサーパンダのいる動物園を10園訪問",
+        check: function(items) { return items.filter(function(x) { return !x.is_closed && x.visited && x.has_red_panda; }).length >= 10; } },
+      { icon: "🦊", label: "レッサーパンダ制覇",     req: "レッサーパンダのいる全動物園を制覇",
+        check: function(items) { var w = items.filter(function(x) { return !x.is_closed && x.has_red_panda; }); return w.length > 0 && w.every(function(x) { return x.visited; }); } },
+    ];
+
+    (async function() {
+      var loggedIn = false;
+      var items = [];
+
+      try {
+        var me = await fetch("/api/me", { credentials: "same-origin" }).then(function(r) { return r.json(); });
+        loggedIn = !!(me && me.user_id);
+      } catch(e) {}
+
+      if (!loggedIn) {
+        document.getElementById("loginMsg").style.display = "";
+      }
+
+      try {
+        var url = loggedIn ? "/api/zoos" : "/api/public/zoos";
+        items = await fetch(url, { credentials: "same-origin" }).then(function(r) { return r.json(); });
+      } catch(e) {
+        document.getElementById("content").innerHTML = "<div class='loading'>データの取得に失敗しました</div>";
+        return;
+      }
+
+      var openItems = items.filter(function(x) { return !x.is_closed; });
+      var total = openItems.length;
+      var visitedCount = loggedIn ? openItems.filter(function(x) { return x.visited; }).length : 0;
+
+      var content = document.getElementById("content");
+      content.innerHTML = "";
+
+      function makeRow(icon, label, req, earned, cls, pct) {
+        var row = document.createElement("div");
+        row.className = "badge-row" + (earned ? " earned" + (cls ? " " + cls : "") : "");
+        if (pct !== undefined && loggedIn && !earned && pct > 0) {
+          var fillColor = cls === "region" ? "#bbdefb" : "#c8e6c9";
+          row.style.background = "linear-gradient(to right, " + fillColor + " " + pct + "%, #fafafa " + pct + "%)";
+        }
+        row.innerHTML =
+          '<div class="badge-icon">' + icon + '</div>' +
+          '<div class="badge-info"><div class="badge-name">' + label + '</div><div class="badge-desc">' + req + '</div></div>' +
+          '<div class="badge-status">' + (earned ? "✅ 達成" : (loggedIn ? pct !== undefined ? pct + "%" : "未達成" : "-")) + '</div>';
+        return row;
+      }
+
+      // --- 訪問数バッジ ---
+      var sec1 = document.createElement("div");
+      sec1.className = "missions-section";
+      sec1.innerHTML = '<h2>訪問数バッジ（' + (loggedIn ? visitedCount + " / " + total + " 園達成" : "ログインで表示") + '）</h2>';
+      var list1 = document.createElement("div");
+      list1.className = "badge-list";
+      VISIT_BADGES.forEach(function(b) {
+        list1.appendChild(makeRow(b.icon, b.label, b.req, loggedIn && b.check(visitedCount, total), ""));
+      });
+      sec1.appendChild(list1);
+      content.appendChild(sec1);
+
+      // --- 動物バッジ（種別グループ表示） ---
+      var sec4 = document.createElement("div");
+      sec4.className = "missions-section";
+      sec4.innerHTML = '<h2>動物バッジ</h2>';
+      var list4 = document.createElement("div");
+      list4.className = "badge-list";
+
+      var ANIMAL_GROUPS = [
+        { name: "ゾウ",           icon: "🐘" },
+        { name: "キリン",         icon: "🦒" },
+        { name: "ライオン",       icon: "🦁" },
+        { name: "トラ",           icon: "🐯" },
+        { name: "パンダ",         icon: "🐼" },
+        { name: "ゴリラ",         icon: "🦍" },
+        { name: "カバ",           icon: "🦛" },
+        { name: "コアラ",         icon: "🐨" },
+        { name: "ホッキョクグマ", icon: "🐻‍❄️" },
+        { name: "レッサーパンダ", icon: "🦊" },
+      ];
+
+      ANIMAL_GROUPS.forEach(function(group) {
+        var tiers = ANIMAL_BADGES.filter(function(b) { return b.label.indexOf(group.name) === 0; });
+        if (!tiers.length) return;
+
+        var earnedTiers = tiers.filter(function(b) { return loggedIn && b.check(items); });
+        var highestEarned = earnedTiers.length ? earnedTiers[earnedTiers.length - 1] : null;
+        var hasEarned = earnedTiers.length > 0;
+
+        var stars = "";
+        for (var i = 0; i < tiers.length; i++) {
+          stars += (i < earnedTiers.length) ? "★" : "☆";
+        }
+
+        var groupDiv = document.createElement("div");
+        groupDiv.className = "animal-group" + (hasEarned ? " has-earned" : "");
+        groupDiv.innerHTML =
+          '<div class="animal-group-header">' +
+            '<span class="animal-group-icon">' + group.icon + '</span>' +
+            '<span class="animal-group-name">' + group.name + '</span>' +
+            '<span class="animal-stars">' + stars + '</span>' +
+            '<span class="animal-current">' + (hasEarned ? highestEarned.label : (loggedIn ? "未達成" : "-")) + '</span>' +
+          '</div>' +
+          '<div class="animal-tier-list"></div>';
+
+        var tierList = groupDiv.querySelector(".animal-tier-list");
+        tiers.forEach(function(b) {
+          var earned = loggedIn && b.check(items);
+          var item = document.createElement("div");
+          item.className = "animal-tier-item" + (earned ? " earned" : "");
+          item.innerHTML =
+            '<span class="tier-dot"></span>' +
+            '<span class="tier-name">' + b.label + '</span>' +
+            '<span class="tier-req-text">' + b.req + '</span>' +
+            (earned ? '<span style="margin-left:auto;font-size:12px;">✅</span>' : '');
+          tierList.appendChild(item);
+        });
+
+        list4.appendChild(groupDiv);
+      });
+
+      sec4.appendChild(list4);
+      content.appendChild(sec4);
+
+      // --- 地域制覇 ---
+      var sec3 = document.createElement("div");
+      sec3.className = "missions-section";
+      var completedRegions = loggedIn ? REGION_ORDER.filter(function(r) {
+        var inR = openItems.filter(function(x) { return regionOf(x.prefecture) === r; });
+        return inR.length > 0 && inR.every(function(x) { return x.visited; });
+      }).length : 0;
+      sec3.innerHTML = '<h2>地域制覇（' + (loggedIn ? completedRegions + " / " + REGION_ORDER.length + " 地域達成" : "ログインで表示") + '）</h2>';
+      var list3 = document.createElement("div");
+      list3.className = "badge-list";
+      REGION_ORDER.forEach(function(r) {
+        var inR = openItems.filter(function(x) { return regionOf(x.prefecture) === r; });
+        var visitedInR = loggedIn ? inR.filter(function(x) { return x.visited; }).length : 0;
+        var earned = loggedIn && inR.length > 0 && inR.every(function(x) { return x.visited; });
+        var req = loggedIn ? visitedInR + " / " + inR.length + " 園" : inR.length + " 園";
+        var pct = inR.length > 0 ? Math.round(visitedInR / inR.length * 100) : 0;
+        list3.appendChild(makeRow("🗾", r + "制覇", req, earned, "region", pct));
+      });
+      sec3.appendChild(list3);
+      content.appendChild(sec3);
+
+      // --- 都道府県制覇（PREF_ORDER順） ---
+      var sec2 = document.createElement("div");
+      sec2.className = "missions-section";
+      var allPrefs = [...new Set(openItems.map(function(x) { return x.prefecture; }))];
+      var prefs = allPrefs.sort(function(a, b) {
+        var ai = PREF_ORDER.indexOf(a), bi = PREF_ORDER.indexOf(b);
+        if (ai === -1) ai = 99; if (bi === -1) bi = 99;
+        return ai - bi;
+      });
+      var completedCount = loggedIn ? prefs.filter(function(p) {
+        var inPref = openItems.filter(function(x) { return x.prefecture === p; });
+        return inPref.length > 0 && inPref.every(function(x) { return x.visited; });
+      }).length : 0;
+      sec2.innerHTML = '<h2>都道府県制覇（' + (loggedIn ? completedCount + " / " + prefs.length + " 県達成" : "ログインで表示") + '）</h2>';
+      var grid = document.createElement("div");
+      grid.className = "pref-grid";
+      prefs.forEach(function(p) {
+        var inPref = openItems.filter(function(x) { return x.prefecture === p; });
+        var visitedInPref = loggedIn ? inPref.filter(function(x) { return x.visited; }).length : 0;
+        var earned = loggedIn && inPref.length > 0 && inPref.every(function(x) { return x.visited; });
+        var pct = inPref.length > 0 ? Math.round(visitedInPref / inPref.length * 100) : 0;
+        var item = document.createElement("div");
+        item.className = "pref-item" + (earned ? " earned" : "");
+        if (loggedIn && !earned && pct > 0) {
+          item.style.background = "linear-gradient(to right, #c8e6c9 " + pct + "%, #fafafa " + pct + "%)";
+        }
+        item.innerHTML =
+          '<span class="pref-name">' + (earned ? "📍 " : "") + p + '</span>' +
+          '<span class="pref-progress">' + (loggedIn ? visitedInPref + "/" + inPref.length : inPref.length + "園") + '</span>';
+        grid.appendChild(item);
+      });
+      sec2.appendChild(grid);
+      content.appendChild(sec2);
+    })();
+  })();
+  </script>
+</body>
+</html>

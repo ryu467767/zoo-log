@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>全国動物園スタンプラリー｜日本全国の動物園を巡ろう</title>
+  <link rel="stylesheet" href="styles.css?v=20260318-1">
+  <link rel="stylesheet" href="styles.layout.css?v=20260318-1">
+  <link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+  <meta name="description"
+      content="全国動物園スタンプラリーは、日本全国の動物園を地図・一覧で管理できる無料Webアプリです。訪問記録・訪問日・回数・写真・メモを管理。上野動物園、旭山動物園、天王寺動物園など全国対応。Googleアカウントで無料登録。">
+  <link rel="canonical" href="https://zoo-log.onrender.com/">
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#2d6a4f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="動物園ラリー">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <meta property="og:title" content="全国動物園スタンプラリー｜日本全国の動物園を巡ろう">
+  <meta property="og:description" content="日本全国の動物園を地図・一覧で管理できる無料スタンプラリーアプリ。訪問記録・写真・メモ機能付き。Googleアカウントで今すぐ無料登録。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://zoo-log.onrender.com/">
+  <meta property="og:site_name" content="全国動物園スタンプラリー">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "全国動物園スタンプラリー",
+      "url": "https://zoo-log.onrender.com/",
+      "description": "日本全国の動物園を地図・一覧で管理できる無料スタンプラリーWebアプリ。訪問記録・訪問日・訪問回数・写真・メモ機能付き。"
+    }
+    </script>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "全国動物園スタンプラリー",
+      "url": "https://zoo-log.onrender.com/",
+      "applicationCategory": "TravelApplication",
+      "operatingSystem": "All",
+      "description": "日本全国の動物園を地図・一覧で管理できる無料スタンプラリーWebアプリ。訪問記録・訪問日・訪問回数・写真・メモ機能付き。上野動物園・旭山動物園など全国対応。",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" }
+    }
+    </script>
+
+  <!-- 動物モーダル ボタン折り返し（スマホ幅対応・キャッシュ回避用インライン） -->
+  <style>
+    .animal-modal-box .modal-actions { flex-wrap: wrap; }
+    .animal-modal-box .modal-actions .modal-btn--primary { flex: 1 1 100%; }
+    .filter-animal-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
+    .animal-modal-box { text-align: left !important; max-width: 380px !important; width: 92vw !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>全国動物園スタンプラリー</h1>
+    <div class="userbox" id="userbox">
+      <button id="menuBtn" class="hamburger-btn" aria-label="メニューを開く">☰</button>
+    </div>
+  </header>
+
+  <!-- ドロワーオーバーレイ -->
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+
+  <!-- ドロワー（右からスライド） -->
+  <nav id="drawer" class="drawer" aria-hidden="true">
+    <button id="drawerClose" class="drawer-close" aria-label="閉じる">×</button>
+
+    <!-- ログイン状態エリア -->
+    <div class="drawer__login">
+      <span id="loginStatus" class="drawer-login-status"></span>
+      <button class="linklike" id="googleLogin" type="button">Googleでログイン</button>
+      <button class="linklike" id="logoutBtn" type="button" style="display:none;">ログアウト</button>
+    </div>
+
+    <div class="drawer__inner">
+      <a href="/" class="drawer-link drawer-link--active">トップページ</a>
+      <a href="/about/" class="drawer-link">このアプリについて</a>
+      <a href="/missions/" class="drawer-link">🏆 ミッション</a>
+      <a id="galleryBtn" href="/gallery/" class="drawer-link" style="display:none;">📷 マイ写真ギャラリー</a>
+      <a href="/contact/" class="drawer-link">お問い合わせ</a>
+      <a href="/privacy/" class="drawer-link">プライバシーポリシー</a>
+    </div>
+  </nav>
+
+  <!-- Stats Dashboard（ログイン時のみ表示） -->
+  <div id="statsDashboard" class="stats-dashboard" style="display:none;">
+    <div class="stats-dashboard__label">訪問状況</div>
+    <div class="stats-dashboard__row">
+      <span id="statsText" class="stats-dashboard__num">-</span>
+      <span id="statsPct" class="stats-dashboard__pct"></span>
+    </div>
+    <div class="progress">
+      <div class="bar" id="progressBar"></div>
+    </div>
+    <!-- 達成バッジ（達成済みのみ表示） -->
+    <div id="badgeContainer" class="badge-container"></div>
+    <div class="stats-dashboard__actions">
+      <button id="shareBtn" class="share-btn" style="display:none;">📸 成績をシェア</button>
+    </div>
+  </div>
+
+  <!-- Login CTA（未ログイン時のみ表示） -->
+  <div id="loginCta" class="login-cta" style="display:none;">
+    <div class="login-cta__inner">
+      <div class="login-cta__left">
+        <div class="login-cta__icon">🔐</div>
+        <div class="login-cta__text">
+          <div class="login-cta__title">全国の動物園を踏破しよう</div>
+          <div class="login-cta__desc">ログインで訪問済・メモ・写真追加が使えます</div>
+        </div>
+      </div>
+      <button id="loginCtaBtn" class="login-cta__btn" type="button">
+        Googleでログイン
+      </button>
+    </div>
+  </div>
+
+  <!-- アプリ紹介（未ログイン時のみ表示） -->
+  <div id="appIntro" class="app-intro" style="display:none;">
+    <p class="app-intro__headline">
+      訪れた動物園を地図・一覧で記録できる<strong>無料Webアプリ</strong>です。<br>
+      Googleアカウントだけで今すぐ無料で始められます。
+    </p>
+    <ul class="app-intro__list">
+      <li><span>📍</span>全国の動物園を地図・一覧で確認</li>
+      <li><span>✅</span>訪問済マーク・訪問日・訪問回数を記録</li>
+      <li><span>📷</span>写真・メモを動物園ごとに保存</li>
+      <li><span>🏆</span>ミッション達成・バッジで制覇を目指せる</li>
+    </ul>
+    <a href="/about/" class="app-intro__link">このアプリについて詳しく →</a>
+  </div>
+
+  <section class="panel">
+    <label class="row">
+      <span>検索</span>
+      <span class="suggest-wrap">
+        <input id="q" type="text" placeholder="施設名/都道府県/市区町村" />
+        <ul id="suggestList" class="suggest-list" style="display:none;"></ul>
+      </span>
+    </label>
+
+    <div class="search-action-row">
+      <button id="areaSearchBtn" class="search-action-btn" type="button">📍 エリアから探す</button>
+      <button id="animalSearchBtn" class="search-action-btn" type="button">🐘 動物から探す</button>
+    </div>
+
+    <div class="closed-toggle-row">
+      <label class="closed-toggle-label">
+        <input type="checkbox" id="showClosedToggle">
+        閉園した動物園を表示する
+      </label>
+    </div>
+  </section>
+
+  <section class="mapwrap">
+    <div id="map"></div>
+  </section>
+
+  <div class="sortBar">
+    <label class="row-compact">
+      <span>絞り込み</span>
+      <button id="filterBtn" class="filter-select-btn" type="button"><span id="filterBtnLabel">すべて</span> ▼</button>
+    </label>
+    <label class="row-compact">
+      <span>並び替え</span>
+      <select id="sort">
+        <option value="pref_plain">都道府県順</option>
+        <option value="pref">地域別</option>
+        <option value="name">五十音順</option>
+        <option value="visit_count">訪問回数順</option>
+        <option value="visited_at">訪問日順</option>
+      </select>
+    </label>
+  </div>
+
+  <main id="list"></main>
+
+  <!-- 地図マーカータップ時のボトムシート -->
+  <div id="mapSheetOverlay" class="map-sheet-overlay" style="display:none;"></div>
+  <div id="mapSheet" class="map-sheet" style="display:none;">
+    <div class="map-sheet__bar"></div>
+    <div class="map-sheet__header">
+      <div>
+        <div class="map-sheet__name" id="sheetName"></div>
+        <div class="map-sheet__loc" id="sheetLoc"></div>
+      </div>
+      <button class="map-sheet__close" id="sheetClose" aria-label="閉じる">✕</button>
+    </div>
+    <div class="map-sheet__actions" id="sheetActions"></div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <a href="/contact/">お問い合わせ</a>
+      <a href="/privacy/">プライバシーポリシー</a>
+      <span>© 2025 全国動物園スタンプラリー</span>
+    </div>
+  </footer>
+
+  <!-- シェアプレビューモーダル -->
+  <div id="shareModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="modal-box share-preview-box">
+      <p class="modal-title">📸 成績をシェア</p>
+      <img id="sharePreviewImg" class="share-preview-img" alt="成績画像プレビュー">
+      <div class="modal-actions">
+        <button id="shareApiBtn" class="modal-btn modal-btn--x-post">𝕏 Xにポストする</button>
+        <button id="shareDownloadBtn" class="modal-btn modal-btn--secondary">💾 画像を保存</button>
+        <button id="shareModalClose" class="modal-btn modal-btn--cancel">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- エリア検索モーダル -->
+  <div id="areaModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="modal-box area-modal-box">
+      <p class="modal-title">📍 エリアから探す</p>
+      <div id="areaModalContent" class="area-modal-content"></div>
+      <div class="modal-actions">
+        <button id="areaModalClear" class="modal-btn modal-btn--secondary">すべてのエリア</button>
+        <button id="areaModalClose" class="modal-btn modal-btn--cancel">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 絞り込みモーダル -->
+  <div id="filterModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="modal-box filter-modal-box">
+      <p class="modal-title">🔍 絞り込み</p>
+      <div class="filter-section">
+        <div class="filter-section-title">訪問状況</div>
+        <div class="filter-radio-group">
+          <label class="filter-radio-label"><input type="radio" name="visitFilter" value="all"> 全部</label>
+          <label class="filter-radio-label"><input type="radio" name="visitFilter" value="visited"> 訪問済</label>
+          <label class="filter-radio-label"><input type="radio" name="visitFilter" value="want_to_go"> 行きたい</label>
+          <label class="filter-radio-label"><input type="radio" name="visitFilter" value="unvisited"> 未訪問</label>
+        </div>
+      </div>
+      <div class="filter-section">
+        <div class="filter-section-title">記録</div>
+        <div class="filter-radio-group">
+          <label class="filter-check-label"><input type="checkbox" id="filterMemoCheck"> 📝 メモあり</label>
+          <label class="filter-check-label"><input type="checkbox" id="filterPhotoCheck"> 📷 写真あり</label>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="filterApplyBtn" class="modal-btn modal-btn--primary">絞り込む</button>
+        <button id="filterResetBtn" class="modal-btn modal-btn--secondary">リセット</button>
+        <button id="filterModalClose" class="modal-btn modal-btn--cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 動物から探すモーダル -->
+  <div id="animalModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="animal-modal-box">
+      <p class="modal-title">🐘 動物から探す</p>
+      <div class="animal-count-banner">
+        <span class="animal-count-num" id="animalCountNum">-</span>
+        <span class="animal-count-label">件の動物園が見つかります</span>
+      </div>
+      <div class="filter-animal-grid">
+        <label class="filter-check-label"><input type="checkbox" name="animalModalFilter" value="has_elephant"> 🐘 ゾウ</label>
+        <label class="filter-check-label"><input type="checkbox" name="animalModalFilter" value="has_giraffe"> 🦒 キリン</label>
+        <label class="filter-check-label"><input type="checkbox" name="animalModalFilter" value="has_lion"> 🦁 ライオン</label>
+        <label class="filter-check-label"><input type="checkbox" name="animalModalFilter" value="has_tiger"> 🐯 トラ</label>
+        <label class="filter-check-label"><input type="checkbox" name="animalModalFilter" value="has_panda"> 🐼 パンダ</label>
+        <label class="filter-check-label"><input type="checkbox" name="animalModalFilter" value="has_gorilla"> 🦍 ゴリラ</label>
+        <label class="filter-check-label"><input type="checkbox" name="animalModalFilter" value="has_hippo"> 🦛 カバ</label>
+        <label class="filter-check-label"><input type="checkbox" name="animalModalFilter" value="has_koala"> 🐨 コアラ</label>
+        <label class="filter-check-label"><input type="checkbox" name="animalModalFilter" value="has_polar_bear"> 🐻‍❄️ ホッキョクグマ</label>
+        <label class="filter-check-label"><input type="checkbox" name="animalModalFilter" value="has_red_panda"> 🦊 レッサーパンダ</label>
+      </div>
+      <div class="modal-actions">
+        <button id="animalApplyBtn" class="modal-btn modal-btn--primary">この条件で探す</button>
+        <button id="animalResetBtn" class="modal-btn modal-btn--secondary">リセット</button>
+        <button id="animalModalClose" class="modal-btn modal-btn--cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- カスタム確認モーダル -->
+  <div id="confirmModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <p class="modal-title" id="confirmTitle"></p>
+      <p class="modal-body" id="confirmBody"></p>
+      <div class="modal-actions">
+        <button id="confirmOk" class="modal-btn modal-btn--danger">解除する</button>
+        <button id="confirmCancel" class="modal-btn modal-btn--cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js?v=20260318-1"></script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+/* =========================================================
+   Layout overrides ONLY
+   目的：PCで「中央に揃う・幅が揃う」だけを確実に実現
+   既存UIは styles.css に任せる（デグレ防止）
+   ========================================================= */
+
+:root{
+  --page-max: 980px;
+  --page-pad: 16px;
+}
+
+/* 既存の section 汎用ルール（max-width:800, margin:40）に巻き込まれないようにする */
+section.panel,
+section.mapwrap{
+  max-width: none !important;
+  margin-top: 0 !important;    /* section { margin:40px } の上下だけ潰す */
+  margin-bottom: 0 !important; /* 左右は下の .panel/.mapwrap の margin:auto に任せる */
+  padding: 0 !important;
+}
+
+/* panel は下に余白を追加（動物フィルターと地図の間隔） */
+section.panel {
+  padding-bottom: 24px !important;
+}
+
+/* 主要ブロックは同じ柱（幅）に揃える */
+.panel,
+.mapwrap,
+.sortBar,
+#list,
+.site-footer{
+  width: min(var(--page-max), calc(100% - (var(--page-pad) * 2))) !important;
+  max-width: none !important;   /* styles.css の max-width:800px を無効化 */
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* 縦の間隔を整える（好みで微調整OK） */
+.panel{ margin-top: 18px !important; padding-bottom: 20px !important; }
+.mapwrap{ margin-top: 12px !important; }
+.sortBar{ margin-top: 10px !important; }
+#list{
+  margin-top: 14px !important;
+  margin-bottom: 28px !important;
+}
+
+/* 地図は柱いっぱいに伸ばす */
+#map{
+  width: 100% !important;
+}
+
+/* PCでは地図を少し大きく（バランス良く） */
+@media (min-width: 980px){
+  #map{ height: 520px !important; }
+}
+
+/* スマホは既存の styles.css を尊重しつつ、左右余白だけ詰める */
+@media (max-width: 520px){
+  :root{ --page-pad: 12px; }
+}
+
+/* ===== Header: h1左・ハンバーガー右上に固定 ===== */
+header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding-bottom: 16px !important;
+}
+header h1 {
+  margin: 0 !important;
+}
+.userbox {
+  position: static !important;
+  margin-top: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+/* ===== Stats dashboard / Login CTA / App Intro centering ===== */
+.stats-dashboard,
+.login-cta,
+.app-intro {
+  width: min(var(--page-max), calc(100% - (var(--page-pad) * 2)));
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 14px !important;
+}

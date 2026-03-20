@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>このアプリについて｜全国動物園スタンプラリー</title>
+
+  <meta name="description" content="全国動物園スタンプラリーは、日本全国の動物園を地図・一覧で管理できる無料アプリです。訪問記録・訪問日・訪問回数・写真・メモ機能付き。上野動物園、旭山動物園など全国対応。">
+  <link rel="canonical" href="https://zoo-log.onrender.com/about/">
+
+  <meta property="og:title" content="このアプリについて｜全国動物園スタンプラリー">
+  <meta property="og:description" content="日本全国の動物園を巡るスタンプラリーアプリ。訪問記録・地図表示・進捗管理。無料で使えます。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://zoo-log.onrender.com/about/">
+
+  <link rel="stylesheet" href="/styles.css?v=20260318-1" />
+</head>
+
+<body>
+  <header>
+    <h1><a href="/" style="color:inherit;text-decoration:none;">全国動物園スタンプラリー</a></h1>
+    <div class="userbox" id="userbox">
+      <button id="menuBtn" class="hamburger-btn" aria-label="メニューを開く">☰</button>
+    </div>
+  </header>
+
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+  <nav id="drawer" class="drawer" aria-hidden="true">
+    <button id="drawerClose" class="drawer-close" aria-label="閉じる">×</button>
+    <div class="drawer__login">
+      <span id="loginStatus" class="drawer-login-status"></span>
+      <button class="linklike" id="googleLogin" type="button">Googleでログイン</button>
+      <button class="linklike" id="logoutBtn" type="button" style="display:none;">ログアウト</button>
+    </div>
+    <div class="drawer__inner">
+      <a href="/" class="drawer-link">トップページ</a>
+      <a href="/about/" class="drawer-link">このアプリについて</a>
+      <a href="/missions/" class="drawer-link">🏆 ミッション</a>
+      <a id="galleryBtn" href="/gallery/" class="drawer-link" style="display:none;">📷 マイ写真ギャラリー</a>
+      <a href="/contact/" class="drawer-link">お問い合わせ</a>
+      <a href="/privacy/" class="drawer-link">プライバシーポリシー</a>
+    </div>
+  </nav>
+
+  <div style="max-width: 800px; margin: 24px auto; padding: 0 16px; line-height: 1.9;">
+
+    <h1>全国動物園スタンプラリーについて</h1>
+
+    <h2>日本全国の動物園を地図＆一覧で管理できる無料アプリ</h2>
+    <p>
+      全国動物園スタンプラリーは、北海道から沖縄まで日本全国にある動物園を地図と一覧で管理できる無料のWebアプリです。
+      Googleアカウントでログインするだけで、訪問記録・訪問日・訪問回数・メモ・写真の管理が始められます。
+    </p>
+
+    <p>
+      動物園巡りが趣味の方や、旅行先で立ち寄れる動物園を探している方に最適です。
+      上野動物園（東京）、旭山動物園（北海道）、天王寺動物園（大阪）など、
+      全国の主要動物園を網羅しています。
+    </p>
+
+    <h2>主な機能</h2>
+    <ul>
+      <li><strong>訪問チェック</strong>：「訪問済にする」ボタンで訪問記録を登録。スタンプラリー感覚で楽しめます。</li>
+      <li><strong>訪問日・訪問回数</strong>：いつ何回行ったかを記録できます（＋/－ボタンで回数調整）。</li>
+      <li><strong>行きたいリスト</strong>：気になる動物園を「行きたい☆」でブックマーク。</li>
+      <li><strong>メモ機能</strong>：感想やおすすめ動物をメモに残せます。</li>
+      <li><strong>写真アップロード</strong>：訪問の思い出写真をカードに追加・閲覧できます。</li>
+      <li><strong>地図表示</strong>：全国の動物園をインタラクティブな地図で確認。訪問済み・行きたいは色分け表示。</li>
+      <li><strong>動物フィルター</strong>：ゾウ・キリン・ライオン・トラ・パンダ・ゴリラ・カバ・コアラ・ホッキョクグマ・レッサーパンダなど動物別で絞り込み。</li>
+      <li><strong>エリアフィルター</strong>：地域・都道府県別で絞り込み。</li>
+      <li><strong>並び替え</strong>：都道府県順・地域別・五十音順・訪問回数順・訪問日順に対応。</li>
+      <li><strong>進捗バー</strong>：全園制覇に向けた達成率をリアルタイム表示。</li>
+      <li><strong>達成バッジ</strong>：10園・30園・50園・100園達成、都道府県制覇などのバッジを獲得。</li>
+      <li><strong>ミッション</strong>：動物別・地域別などのミッションに挑戦できます。</li>
+      <li><strong>写真ギャラリー</strong>：自分がアップロードした写真を一覧で見られます。</li>
+      <li><strong>成績シェア</strong>：訪問数をX（旧Twitter）にポストできます。</li>
+    </ul>
+
+    <h2>こんな人におすすめ</h2>
+    <ul>
+      <li>日本全国の動物園を制覇したい方</li>
+      <li>旅行先で近くの動物園を探したい方</li>
+      <li>特定の動物（パンダ・ゾウ・ゴリラなど）がいる動物園を探したい方</li>
+      <li>動物園巡りの記録をまとめたい方</li>
+      <li>スタンプラリー・チェックリスト形式が好きな方</li>
+    </ul>
+
+    <h2>対応エリア</h2>
+    <p>
+      北海道・東北・関東・中部・近畿・中国・四国・九州・沖縄など、日本全国の動物園に対応しています。
+      大型動物園から地方の小規模動物園まで幅広く収録しています。
+    </p>
+
+    <h2>利用方法</h2>
+    <ol>
+      <li>Googleアカウントでログイン（無料）</li>
+      <li>地図または一覧から動物園を探す</li>
+      <li>「訪問済にする」ボタンで記録を登録</li>
+      <li>訪問日・回数・メモ・写真を記録する</li>
+      <li>動物フィルターやエリアフィルターで次の目標を見つける</li>
+      <li>達成バッジ・ミッションで全園制覇を目指す</li>
+    </ol>
+
+    <p style="margin-top: 32px; font-size: 13px; opacity: 0.65;">
+      ※ログインなしでも地図・一覧の閲覧は可能です（記録機能にはログインが必要）。
+    </p>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <a href="/contact/">お問い合わせ</a>
+      <a href="/privacy/">プライバシーポリシー</a>
+      <span>© 2025 全国動物園スタンプラリー</span>
+    </div>
+  </footer>
+
+  <script src="/nav.js?v=20260318-1"></script>
+</body>
+</html>

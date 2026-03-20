@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://zoo-log.onrender.com/sitemap.xml
