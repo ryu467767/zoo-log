@@ -83,6 +83,8 @@ def import_csv(csv_path: str) -> int:
                 ).first()
                 if exists:
                     for k, v in data.items():
+                        if v is None and getattr(exists, k, None) is not None:
+                            continue  # 既存の値をNoneで上書きしない
                         setattr(exists, k, v)
                     db.add(exists)
                 else:

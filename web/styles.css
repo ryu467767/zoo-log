@@ -647,8 +647,8 @@ header, .panel, main, .card{
     box-shadow: 0 2px 8px rgba(0,0,0,.25);
   }
 
-  .marker.visited { background: #2ecc71; }
-  .marker.unvisited { background: #48bb78; }
+  .marker.visited { background: #1a6bbf; }
+  .marker.unvisited { background: #5aaaff; }
 
 
   .chips-row{
