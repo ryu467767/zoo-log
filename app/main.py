@@ -388,6 +388,8 @@ def zoos(request: Request):
                 "location_raw": z.location_raw,
                 "url": z.url,
                 "mola_star": z.mola_star,
+                "twitter_id": z.twitter_id or "",
+                "instagram_id": z.instagram_id or "",
                 "visited": bool(v.visited) if v else False,
                 "visited_at": v.visited_at.isoformat() if (v and v.visited_at) else None,
                 "visit_count": v.visit_count if v else 0,
@@ -425,6 +427,8 @@ def public_zoos():
             "location_raw": z.location_raw,
             "url": z.url,
             "mola_star": z.mola_star,
+            "twitter_id": z.twitter_id or "",
+            "instagram_id": z.instagram_id or "",
             "lat": z.lat,
             "lng": z.lng,
             "has_elephant": bool(z.has_elephant),
@@ -833,6 +837,8 @@ def get_users(request: Request):
         return [
             {
                 "user_id_masked": u.user_id[:6] + "***",
+                "name":          u.name,
+                "login_count":   u.login_count,
                 "created_at":    u.created_at.isoformat(),
                 "last_login_at": u.last_login_at.isoformat(),
                 "visited_count": visit_map.get(u.user_id, 0),
@@ -841,6 +847,57 @@ def get_users(request: Request):
             }
             for u in users
         ]
+
+
+@app.get("/api/admin/photos")
+def get_admin_photos(request: Request, limit: int = 100):
+    require_admin(request)
+    with session() as db:
+        # UserProfile, Zoo と JOIN して直近の写真を limit 件取得
+        rows = db.exec(
+            select(Photo, UserProfile.name, Zoo.name)
+            .join(UserProfile, Photo.user_id == UserProfile.user_id, isouter=True)
+            .join(Zoo, Photo.zoo_id == Zoo.id, isouter=True)
+            .order_by(Photo.created_at.desc())
+            .limit(limit)
+        ).all()
+
+        return [
+            {
+                "id": p.id,
+                "path": "/uploads/" + p.path,
+                "created_at": p.created_at.isoformat(),
+                "user_name": u_name or "不明なユーザー",
+                "zoo_name": z_name or "不明な動物園",
+            }
+            for p, u_name, z_name in rows
+        ]
+
+
+class ZooSocialIn(BaseModel):
+    twitter_id: Optional[str] = None
+    instagram_id: Optional[str] = None
+
+
+@app.put("/api/admin/zoos/{zoo_id}/social")
+def update_zoo_social(zoo_id: int, body: ZooSocialIn, request: Request):
+    """管理者が動物園のSNSアカウントIDを更新する。"""
+    require_admin(request)
+    with session() as db:
+        z = db.get(Zoo, zoo_id)
+        if not z:
+            raise HTTPException(404, "Zoo not found")
+        # 空文字はNullに統一
+        z.twitter_id = body.twitter_id.strip() if body.twitter_id and body.twitter_id.strip() else None
+        z.instagram_id = body.instagram_id.strip() if body.instagram_id and body.instagram_id.strip() else None
+        db.add(z)
+        db.commit()
+        db.refresh(z)
+    return {
+        "id": z.id,
+        "twitter_id": z.twitter_id or "",
+        "instagram_id": z.instagram_id or "",
+    }
 
 
     # 静的フロント（webディレクトリを確実に参照）

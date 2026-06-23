@@ -6,10 +6,11 @@ def upsert_user_profile(db, user_id: str, email: str, name: str):
     now = datetime.utcnow()
     p = db.get(UserProfile, user_id)
     if p is None:
-        p = UserProfile(user_id=user_id, email=email, name=name, created_at=now)
+        p = UserProfile(user_id=user_id, email=email, name=name, created_at=now, login_count=1)
     else:
         p.email = email
         p.name = name
+        p.login_count = (p.login_count or 0) + 1
     p.last_login_at = now
     db.add(p)
     db.commit()

@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>管理画面｜動物園スタンプラリー</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
+
+    /* ===== Header ===== */
+    .adm-header {
+      background: #1e293b;
+      color: #fff;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    }
+    .adm-header h1 { font-size: 16px; font-weight: 800; letter-spacing: .04em; }
+    .adm-header a { color: #94a3b8; text-decoration: none; font-size: 13px; }
+    .adm-header a:hover { color: #fff; }
+
+    /* ===== Body ===== */
+    .adm-body { max-width: 1100px; margin: 0 auto; padding: 28px 20px; }
+
+    /* ===== Status message ===== */
+    #adminStatus {
+      text-align: center;
+      padding: 80px 20px;
+      font-size: 16px;
+      color: #64748b;
+      line-height: 2;
+    }
+
+    /* ===== Section title ===== */
+    .section-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin: 0 0 12px;
+    }
+
+    /* ===== Stats grid ===== */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .stat-card__label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin-bottom: 8px;
+    }
+    .stat-card__value {
+      font-size: 36px;
+      font-weight: 900;
+      color: #2d6a4f;
+      line-height: 1;
+    }
+    .stat-card__value.green  { color: #059669; }
+    .stat-card__value.amber  { color: #d97706; }
+    .stat-card__value.alert  { color: #dc2626; }
+    .stat-card__sub { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+
+    /* ===== Tabs ===== */
+    .tab-bar {
+      display: flex;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      padding: 10px 22px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      color: #64748b;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn.active { color: #2d6a4f; border-color: #2d6a4f; }
+    .tab-btn:hover:not(.active) { color: #334155; }
+
+    /* ===== Table card ===== */
+    .adm-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      overflow: hidden;
+    }
+    .adm-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .adm-table th {
+      background: #f8fafc;
+      text-align: left;
+      padding: 11px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .adm-table td {
+      padding: 13px 16px;
+      font-size: 13px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+    .adm-table tr:last-child td { border-bottom: none; }
+    .adm-table tr:hover td { background: #fafcfe; }
+
+    /* ===== Badges ===== */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-new  { background: #fee2e2; color: #dc2626; }
+    .badge-read { background: #f1f5f9; color: #94a3b8; }
+
+    /* ===== Read button ===== */
+    .read-btn {
+      padding: 4px 12px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #475569;
+      transition: background .1s;
+    }
+    .read-btn:hover { background: #f1f5f9; }
+    .read-btn:disabled { opacity: .5; cursor: default; }
+
+    /* ===== Message cell ===== */
+    .msg-cell {
+      max-width: 340px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #334155;
+    }
+
+    /* ===== Empty / loading row ===== */
+    .row-info td {
+      text-align: center !important;
+      padding: 48px !important;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+
+    /* ===== Photo Grid ===== */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      padding: 20px;
+    }
+    .photo-card {
+      background: #f8fafc;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+      border: 1px solid #e2e8f0;
+    }
+    .photo-card img {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      display: block;
+      transition: transform .2s;
+    }
+    .photo-card img:hover { transform: scale(1.05); }
+    .photo-card-info { padding: 12px; }
+    .photo-card-info p {
+      font-size: 12px;
+      color: #475569;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .photo-card-info p:last-child { margin-bottom: 0; }
+    .photo-card-info .strong { font-weight: 700; color: #0f172a; }
+
+    /* ===== Mobile ===== */
+    @media (max-width: 640px) {
+      .adm-body { padding: 16px 12px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .stat-card { padding: 14px 16px; }
+      .stat-card__value { font-size: 26px; }
+      .hide-sm { display: none; }
+    }
+    /* ===== SNS Edit inputs ===== */
+    .sns-input {
+      width: 140px;
+      padding: 5px 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #1e293b;
+    }
+    .sns-input:focus { outline: none; border-color: #2d6a4f; box-shadow: 0 0 0 2px rgba(45,106,79,0.15); }
+    .sns-save-btn {
+      padding: 5px 14px;
+      border-radius: 8px;
+      border: none;
+      background: #2d6a4f;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .1s;
+      white-space: nowrap;
+    }
+    .sns-save-btn:hover { background: #1b5e38; }
+    .sns-save-btn:disabled { opacity:.5; cursor:default; }
+    .sns-saved { font-size: 11px; color: #059669; margin-left: 6px; }
+  </style>
+</head>
+<body>
+
+<header class="adm-header">
+  <a href="/">← サイトへ戻る</a>
+  <h1>管理者ダッシュボード</h1>
+</header>
+
+<div class="adm-body">
+  <div id="adminStatus">認証確認中...</div>
+
+  <div id="adminContent" style="display:none;">
+
+    <!-- ユーザー指標 -->
+    <p class="section-title">👥 ユーザー</p>
+    <div class="stats-grid" style="margin-bottom:28px;">
+      <div class="stat-card">
+        <div class="stat-card__label">登録ユーザー数</div>
+        <div class="stat-card__value" id="statUsers">-</div>
+        <div class="stat-card__sub" id="statActive"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">1人あたり訪問済</div>
+        <div class="stat-card__value green" id="statAvgVisited">-</div>
+        <div class="stat-card__sub">園（平均）</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">1人あたり行きたい</div>
+        <div class="stat-card__value green" id="statAvgWant">-</div>
+        <div class="stat-card__sub">園（平均）</div>
+      </div>
+    </div>
+
+    <!-- アクション指標 -->
+    <p class="section-title">📊 アクション集計</p>
+    <div class="stats-grid" style="margin-bottom:28px;">
+      <div class="stat-card">
+        <div class="stat-card__label">訪問済 総数</div>
+        <div class="stat-card__value" id="statVisits">-</div>
+        <div class="stat-card__sub">全ユーザー合計</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">行きたい☆ 総数</div>
+        <div class="stat-card__value" id="statWant">-</div>
+        <div class="stat-card__sub">全ユーザー合計</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">写真投稿数</div>
+        <div class="stat-card__value" id="statPhotos">-</div>
+        <div class="stat-card__sub">全ユーザー合計</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">収録動物園数</div>
+        <div class="stat-card__value amber" id="statZoos">-</div>
+      </div>
+    </div>
+
+    <!-- バッジ指標 -->
+    <p class="section-title">🏆 バッジ獲得者数</p>
+    <div class="stats-grid" style="margin-bottom:28px;">
+      <div class="stat-card">
+        <div class="stat-card__label">🥉 10園達成</div>
+        <div class="stat-card__value" id="statB10">-</div>
+        <div class="stat-card__sub">人</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">🥈 30園達成</div>
+        <div class="stat-card__value" id="statB30">-</div>
+        <div class="stat-card__sub">人</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card__label">🥇 50園達成</div>
+        <div class="stat-card__value" id="statB50">-</div>
+        <div class="stat-card__sub">人</div>
+      </div>
+    </div>
+
+    <!-- お問い合わせ指標 -->
+    <p class="section-title">📬 お問い合わせ</p>
+    <div class="stats-grid" style="margin-bottom:28px;">
+      <div class="stat-card">
+        <div class="stat-card__label">未読</div>
+        <div class="stat-card__value" id="statInquiries">-</div>
+        <div class="stat-card__sub" id="statInquiriesSub"></div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="contacts">お問い合わせ</button>
+      <button class="tab-btn" data-tab="users">ユーザー一覧</button>
+      <button class="tab-btn" data-tab="photos">写真一覧</button>
+      <button class="tab-btn" data-tab="sns">🐦 SNS設定</button>
+    </div>
+
+    <!-- Contacts tab -->
+    <div id="tab-contacts" class="tab-content adm-card">
+      <table class="adm-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>受信日時</th>
+            <th>名前</th>
+            <th class="hide-sm">メール</th>
+            <th>内容</th>
+            <th>状態</th>
+          </tr>
+        </thead>
+        <tbody id="contactsBody">
+          <tr class="row-info"><td colspan="6">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Users tab -->
+    <div id="tab-users" class="tab-content adm-card" style="display:none;">
+      <table class="adm-table">
+        <thead>
+          <tr>
+            <th>ユーザーID（匿名）</th>
+            <th>名前</th>
+            <th>ログイン回数</th>
+            <th class="hide-sm">登録日</th>
+            <th>最終ログイン</th>
+            <th>訪問済</th>
+            <th>行きたい</th>
+            <th>写真</th>
+          </tr>
+        </thead>
+        <tbody id="usersBody">
+          <tr class="row-info"><td colspan="8">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Photos tab -->
+    <div id="tab-photos" class="tab-content adm-card" style="display:none;">
+       <div class="photo-grid" id="photosBody">
+         <div class="row-info" style="grid-column: 1 / -1; padding: 48px;">読み込み中...</div>
+       </div>
+    </div>
+
+    <!-- SNS tab -->
+    <div id="tab-sns" class="tab-content adm-card" style="display:none;">
+      <div style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0;">
+        <input id="snsSearch" type="search" placeholder="動物園名で絞り込み..." style="width:100%; max-width:360px; padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px;">
+        <span style="margin-left:12px; font-size:12px; color:#94a3b8;">※ @なしのアカウントIDを入力してください</span>
+      </div>
+      <table class="adm-table">
+        <thead>
+          <tr>
+            <th>動物園名</th>
+            <th>都道府県</th>
+            <th>X (Twitter)</th>
+            <th>Instagram</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="snsBody">
+          <tr class="row-info"><td colspan="5">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /adminContent -->
+</div><!-- /adm-body -->
+
+<script>
+(function () {
+  let csrfToken = '';
+
+  async function init() {
+    try {
+      const me = await fetch('/api/me').then(r => r.json());
+      if (!me.logged_in) {
+        document.getElementById('adminStatus').innerHTML =
+          'ログインが必要です。<br><a href="/">← トップページでログインしてください</a>';
+        return;
+      }
+
+      const statsRes = await fetch('/api/admin/stats');
+      if (statsRes.status === 403) {
+        document.getElementById('adminStatus').textContent = 'このページは管理者のみアクセスできます。';
+        return;
+      }
+      if (!statsRes.ok) throw new Error('stats取得失敗');
+
+      const stats = await statsRes.json();
+
+      // CSRF token（PUT用）
+      csrfToken = (await fetch('/api/csrf').then(r => r.json())).token;
+
+      document.getElementById('adminStatus').style.display = 'none';
+      document.getElementById('adminContent').style.display = 'block';
+
+      renderStats(stats);
+
+      // タブ切り替え
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+          document.getElementById('tab-' + btn.dataset.tab).style.display = 'block';
+          if (btn.dataset.tab === 'users') loadUsers();
+          if (btn.dataset.tab === 'photos') loadPhotos();
+          if (btn.dataset.tab === 'sns') loadSNS();
+        });
+      });
+
+      await loadContacts();
+
+    } catch (err) {
+      document.getElementById('adminStatus').textContent = 'エラー: ' + err.message;
+    }
+  }
+
+  function renderStats(s) {
+    document.getElementById('statUsers').textContent     = s.total_users;
+    document.getElementById('statActive').textContent    = `30日以内アクティブ: ${s.active_users_30d} 人`;
+    document.getElementById('statAvgVisited').textContent = s.avg_visited_per_user;
+    document.getElementById('statAvgWant').textContent   = s.avg_want_per_user;
+    document.getElementById('statVisits').textContent    = s.total_visits;
+    document.getElementById('statWant').textContent      = s.total_want_to_go;
+    document.getElementById('statPhotos').textContent    = s.total_photos;
+    document.getElementById('statZoos').textContent      = s.total_zoos;
+    document.getElementById('statB10').textContent       = s.badge_v10_users;
+    document.getElementById('statB30').textContent       = s.badge_v30_users;
+    document.getElementById('statB50').textContent       = s.badge_v50_users;
+
+    const inqEl = document.getElementById('statInquiries');
+    inqEl.textContent = s.unread_inquiries;
+    if (s.unread_inquiries > 0) inqEl.classList.add('alert');
+    document.getElementById('statInquiriesSub').textContent = `全 ${s.total_inquiries} 件`;
+  }
+
+  async function loadContacts() {
+    const tbody = document.getElementById('contactsBody');
+    const contacts = await fetch('/api/admin/contacts').then(r => r.json());
+
+    if (!contacts.length) {
+      tbody.innerHTML = '<tr class="row-info"><td colspan="6">お問い合わせはまだありません</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = contacts.map(c => `
+      <tr>
+        <td style="color:#94a3b8;">#${c.id}</td>
+        <td style="white-space:nowrap;color:#94a3b8;">${fmtDate(c.created_at)}</td>
+        <td>${esc(c.name)}</td>
+        <td class="hide-sm"><a href="mailto:${esc(c.email)}">${esc(c.email)}</a></td>
+        <td class="msg-cell">${esc(c.message)}</td>
+        <td style="white-space:nowrap;">
+          ${c.is_read
+            ? '<span class="badge badge-read">既読</span>'
+            : `<button class="read-btn" data-id="${c.id}">既読にする</button>`}
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('.read-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = '...';
+        await fetch(`/api/admin/contacts/${btn.dataset.id}/read`, {
+          method: 'PUT',
+          headers: { 'X-CSRF-Token': csrfToken },
+        });
+        await loadContacts();
+      });
+    });
+  }
+
+  let usersLoaded = false;
+  async function loadUsers() {
+    if (usersLoaded) return;
+    const tbody = document.getElementById('usersBody');
+    tbody.innerHTML = '<tr class="row-info"><td colspan="8">読み込み中...</td></tr>';
+
+    const users = await fetch('/api/admin/users').then(r => r.json());
+    if (!users.length) {
+      tbody.innerHTML = '<tr class="row-info"><td colspan="8">ユーザーはいません</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td style="font-family:monospace;color:#64748b;">${esc(u.user_id_masked)}</td>
+        <td style="font-weight:bold;color:#1e293b;">${esc(u.name || '不明')}</td>
+        <td style="color:#059669;font-weight:bold;">${u.login_count} 回</td>
+        <td class="hide-sm" style="color:#94a3b8;">${fmtDate(u.created_at)}</td>
+        <td style="color:#94a3b8;">${fmtDate(u.last_login_at)}</td>
+        <td style="font-weight:bold;color:#2d6a4f;">${u.visited_count} 園</td>
+        <td style="color:#e65100;">${u.want_count} 園</td>
+        <td style="color:#64748b;">${u.photo_count} 枚</td>
+      </tr>
+    `).join('');
+
+    usersLoaded = true;
+  }
+
+  let photosLoaded = false;
+  async function loadPhotos() {
+    if (photosLoaded) return;
+    const body = document.getElementById('photosBody');
+    body.innerHTML = '<div class="row-info" style="grid-column: 1 / -1; padding: 48px; text-align: center;">読み込み中...</div>';
+
+    const photos = await fetch('/api/admin/photos').then(r => r.json());
+    if (!photos.length) {
+      body.innerHTML = '<div class="row-info" style="grid-column: 1 / -1; padding: 48px; text-align: center;">投稿された写真はありません</div>';
+      return;
+    }
+
+    body.innerHTML = photos.map(p => `
+      <div class="photo-card">
+        <a href="${esc(p.path)}" target="_blank" style="display:block; overflow:hidden;">
+          <img src="${esc(p.path)}" loading="lazy" alt="photo">
+        </a>
+        <div class="photo-card-info">
+          <p class="strong" title="${esc(p.zoo_name)}">${esc(p.zoo_name)}</p>
+          <p title="${esc(p.user_name)}">👤 ${esc(p.user_name)}</p>
+          <p style="color:#94a3b8;font-size:11px;">${fmtDate(p.created_at)}</p>
+        </div>
+      </div>
+    `).join('');
+
+    photosLoaded = true;
+  }
+
+  let snsLoaded = false;
+  let allZoos = [];
+  async function loadSNS() {
+    if (snsLoaded) return;
+    const tbody = document.getElementById('snsBody');
+    tbody.innerHTML = '<tr class="row-info"><td colspan="5">読み込み中...</td></tr>';
+
+    // 公開APIから動物園一覧取得（認証不要）
+    allZoos = await fetch('/api/public/zoos').then(r => r.json());
+    allZoos.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+
+    renderSNSTable(allZoos);
+    snsLoaded = true;
+
+    // 検索フィルタ
+    document.getElementById('snsSearch').addEventListener('input', (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      const filtered = q ? allZoos.filter(a => a.name.toLowerCase().includes(q) || (a.prefecture || '').includes(q)) : allZoos;
+      renderSNSTable(filtered);
+    });
+  }
+
+  function renderSNSTable(zoos) {
+    const tbody = document.getElementById('snsBody');
+    if (!zoos.length) {
+      tbody.innerHTML = '<tr class="row-info"><td colspan="5">該当なし</td></tr>';
+      return;
+    }
+    tbody.innerHTML = zoos.map(a => `
+      <tr id="sns-row-${a.id}">
+        <td style="font-weight:700;"><a href="${esc(a.url)}" target="_blank" style="color:#2d6a4f;text-decoration:none;" title="${esc(a.name)}">${esc(a.name)}</a></td>
+        <td style="color:#94a3b8;white-space:nowrap;">${esc(a.prefecture)}</td>
+        <td>
+          <input class="sns-input" id="sns-x-${a.id}" type="text" value="${esc(a.twitter_id || '')}" placeholder="例: tokyo_zoo" autocomplete="off">
+        </td>
+        <td>
+          <input class="sns-input" id="sns-ig-${a.id}" type="text" value="${esc(a.instagram_id || '')}" placeholder="例: tokyo_zoo_official" autocomplete="off">
+        </td>
+        <td style="white-space:nowrap;">
+          <button class="sns-save-btn" onclick="saveSNS(${a.id})">保存</button>
+          <span class="sns-saved" id="sns-saved-${a.id}" style="display:none;">✓ 保存済</span>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function saveSNS(id) {
+    const xVal = document.getElementById(`sns-x-${id}`).value.trim();
+    const igVal = document.getElementById(`sns-ig-${id}`).value.trim();
+    const btn = document.querySelector(`#sns-row-${id} .sns-save-btn`);
+    const saved = document.getElementById(`sns-saved-${id}`);
+    btn.disabled = true;
+    saved.style.display = 'none';
+    try {
+      await fetch(`/api/admin/zoos/${id}/social`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify({ twitter_id: xVal || null, instagram_id: igVal || null }),
+      });
+      // stateも更新
+      const z = allZoos.find(a => a.id === id);
+      if (z) { z.twitter_id = xVal; z.instagram_id = igVal; }
+      saved.style.display = 'inline';
+      setTimeout(() => { saved.style.display = 'none'; }, 2500);
+    } catch(e) {
+      alert('保存失敗: ' + e.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  window.saveSNS = saveSNS;
+
+  function fmtDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso.endsWith('Z') ? iso : iso + 'Z');
+    return d.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })
+      + ' '
+      + d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function esc(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  init();
+})();
+</script>
+
+</body>
+</html>

@@ -13,6 +13,10 @@ class Zoo(SQLModel, table=True):
     url: str = ""
     mola_star: int = 0
 
+    # SNSアカウントID（@なし）。管理画面から設定する。
+    twitter_id: Optional[str] = Field(default=None)    # 例: "tokyo_zoo"
+    instagram_id: Optional[str] = Field(default=None)  # 例: "tokyo_zoo_official"
+
     # lat/lng も使うならここで持つ（既に列ある前提）
     lat: Optional[float] = None
     lng: Optional[float] = None
@@ -61,6 +65,7 @@ class UserProfile(SQLModel, table=True):
     user_id: str = Field(primary_key=True)
     email: str = ""
     name: str = ""
+    login_count: int = Field(default=0)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_login_at: datetime = Field(default_factory=datetime.utcnow)
 

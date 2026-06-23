@@ -36,6 +36,9 @@ def _migrate():
         "ALTER TABLE zoos ADD COLUMN closed_at TEXT",
         "ALTER TABLE visits ADD COLUMN visit_years TEXT NOT NULL DEFAULT '[]'",
         "ALTER TABLE visits ADD COLUMN visit_dates TEXT NOT NULL DEFAULT '[]'",
+        "ALTER TABLE zoos ADD COLUMN twitter_id TEXT",
+        "ALTER TABLE zoos ADD COLUMN instagram_id TEXT",
+        "ALTER TABLE user_profiles ADD COLUMN login_count INTEGER NOT NULL DEFAULT 0",
     ]
     for sql in schema_migrations:
         try:
