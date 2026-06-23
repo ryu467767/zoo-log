@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 from sqlalchemy import func
 from .db import init_db, session
-from .models import Zoo, Visit, Photo, UserProfile, Inquiry
+from .models import Zoo, Visit, Photo, UserProfile, Inquiry, ShareCard
 from .crud import (
     list_zoos, set_visited, set_note, set_visited_at, set_visit_count,
     set_want_to_go, upsert_user_profile, create_inquiry, list_inquiries,
@@ -898,6 +898,106 @@ def update_zoo_social(zoo_id: int, body: ZooSocialIn, request: Request):
         "twitter_id": z.twitter_id or "",
         "instagram_id": z.instagram_id or "",
     }
+
+
+# ===== X共有カード（OGP共有ページ） =====
+SHARE_DIR_NAME = "_share"   # UPLOAD_DIR 配下のサブディレクトリ
+SHARE_KEEP = 3              # ユーザーごとに保持する共有画像の最大数
+
+
+@app.post("/api/share")
+async def create_share(request: Request, file: UploadFile = File(...),
+                       visited: int = 0, total: int = 0):
+    """canvasで生成した成績画像を受け取り保存。共有ページURLを返す（ログイン＋CSRF必須）"""
+    uid = get_user_id(request)
+
+    data = await file.read()
+    # 5MB制限
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(413, "File too large (max 5MB)")
+    # PNGマジックバイト確認
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise HTTPException(400, "Invalid image file (PNG only)")
+
+    token = uuid4().hex
+    rel_dir = SHARE_DIR_NAME
+    abs_dir = os.path.join(UPLOAD_DIR, rel_dir)
+    os.makedirs(abs_dir, exist_ok=True)
+    rel_path = f"{rel_dir}/{token}.png"
+    abs_path = os.path.join(UPLOAD_DIR, rel_path)
+    with open(abs_path, "wb") as f:
+        f.write(data)
+
+    with session() as db:
+        sc = ShareCard(token=token, image_path=rel_path, user_id=uid,
+                       visited=int(visited or 0), total=int(total or 0))
+        db.add(sc)
+        db.commit()
+
+        # ユーザーごとに最新 SHARE_KEEP 件だけ残し、古い共有画像を削除
+        old = db.exec(
+            select(ShareCard)
+            .where(ShareCard.user_id == uid)
+            .order_by(ShareCard.created_at.desc())
+        ).all()
+        for s in old[SHARE_KEEP:]:
+            old_abs = os.path.join(UPLOAD_DIR, s.image_path)
+            try:
+                if os.path.exists(old_abs):
+                    os.remove(old_abs)
+            except Exception:
+                pass
+            db.delete(s)
+        db.commit()
+
+    return {"token": token, "url": f"/share/{token}"}
+
+
+@app.get("/share/{token}", response_class=HTMLResponse, include_in_schema=False)
+def share_page(token: str, request: Request):
+    """Xクローラ向けに og:image 付きHTMLを返す公開ページ（認証不要）"""
+    # tokenを安全な文字に限定（パストラバーサル防止）
+    if not token.isalnum():
+        raise HTTPException(404, "Not found")
+    with session() as db:
+        sc = db.get(ShareCard, token)
+    if not sc:
+        raise HTTPException(404, "Not found")
+
+    img_url = f"{BASE_URL}/uploads/{sc.image_path}"
+    pct = round(sc.visited / sc.total * 100) if sc.total else 0
+    title = f"{sc.visited}園訪問達成！（全{sc.total}園中 {pct}%） | 全国動物園スタンプラリー"
+    desc = "全国の動物園をスタンプラリー形式で記録できるアプリ。あなたも動物園巡りの成績をシェアしよう！"
+    html = f"""<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<meta name="description" content="{desc}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{desc}">
+<meta property="og:image" content="{img_url}">
+<meta property="og:url" content="{BASE_URL}/share/{token}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{title}">
+<meta name="twitter:description" content="{desc}">
+<meta name="twitter:image" content="{img_url}">
+<style>
+  body {{ margin:0; font-family:sans-serif; background:#1b4332; color:#fff;
+         display:flex; flex-direction:column; align-items:center; padding:24px; }}
+  img {{ max-width:100%; width:600px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.4); }}
+  a.btn {{ margin-top:20px; background:#2d6a4f; color:#fff; text-decoration:none;
+          padding:12px 28px; border-radius:999px; font-weight:bold; }}
+</style>
+</head>
+<body>
+  <img src="/uploads/{sc.image_path}" alt="{title}">
+  <a class="btn" href="/">🐘 全国動物園スタンプラリーを見る</a>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
 
 
     # 静的フロント（webディレクトリを確実に参照）

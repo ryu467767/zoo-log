@@ -1114,26 +1114,79 @@ function handleShare() {
   const shareApiBtn = document.getElementById("shareApiBtn");
   if (shareApiBtn) {
     shareApiBtn.onclick = async () => {
-      const tweetText = `${visited}園訪問達成！（全${total}園中 ${Math.round(visited/Math.max(total,1)*100)}%）\n#全国動物園スタンプラリー\nhttps://zoo-log.onrender.com/`;
-      // スマホ: 画像付きWeb Share → その後Xを開く
+      const pct = Math.round(visited / Math.max(total, 1) * 100);
+      const SITE_URL = "https://zoo-log.onrender.com/";
+      // URLを含まない本文（PCはintentのurl=共有URLでカード表示するため重複させない）
+      const textBase =
+        `${visited}園訪問達成！🐘（全${total}園中 ${pct}%）\n` +
+        `あなたも動物園巡りを記録しよう！\n` +
+        `#全国動物園スタンプラリー #動物園巡り #動物園`;
+
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+      // PCは先に空タブを開いてユーザー操作コンテキストを保持（await後のwindow.openはポップアップブロックされるため）
+      let xWin = null;
+      if (!isMobile) xWin = window.open("", "_blank");
+
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], "zoo_stamp.png", { type: "image/png" });
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+
+      // 共有スナップショットをサーバー保存し、OGP付き共有URLを取得
+      let shareUrl = "";
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        const up = await fetch(
+          `/api/share?visited=${encodeURIComponent(visited)}&total=${encodeURIComponent(total)}`,
+          {
+            method: "POST",
+            body: fd,
+            credentials: "same-origin",
+            headers: { "X-CSRF-Token": state.csrfToken },
+          }
+        );
+        if (up.ok) {
+          const j = await up.json();
+          shareUrl = location.origin + (j.url || "");
+        }
+      } catch (e) {
+        console.warn("share upload failed", e);
+      }
+
+      // スマホのみ: 画像付きWeb Share（実画像がそのまま添付される）
+      if (isMobile && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ files: [file], title: "全国動物園スタンプラリー", text: tweetText });
+          await navigator.share({
+            files: [file],
+            title: "全国動物園スタンプラリー",
+            text: textBase + "\n" + SITE_URL,
+          });
           return;
         } catch (e) {
           if (e.name === "AbortError") return;
         }
       }
-      // デスクトップ or フォールバック: 画像を保存 + X Web Intent を開く
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = "zoo_stamp.png";
-      a.click();
-      const xUrl = "https://x.com/intent/tweet?text=" + encodeURIComponent(tweetText);
-      window.open(xUrl, "_blank", "noopener");
+
+      // デスクトップ or フォールバック: X Web Intent を開く
+      // 共有URLがあればカード画像が自動表示される。無ければ画像保存にフォールバック
+      let xUrl = "https://x.com/intent/tweet?text=" + encodeURIComponent(textBase);
+      if (shareUrl) {
+        xUrl += "&url=" + encodeURIComponent(shareUrl);
+      } else {
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = "zoo_stamp.png";
+        a.click();
+        xUrl = "https://x.com/intent/tweet?text=" +
+          encodeURIComponent(textBase + "\n" + SITE_URL);
+      }
+      // 先に開いた空タブがあればそこを遷移、無ければ新規に開く
+      if (xWin) {
+        xWin.location.href = xUrl;
+      } else {
+        window.open(xUrl, "_blank", "noopener");
+      }
     };
   }
 

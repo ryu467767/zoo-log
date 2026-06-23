@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>更新情報｜全国動物園スタンプラリー</title>
+  <meta name="description" content="全国動物園スタンプラリーの更新履歴。新機能の追加・動物園データの更新・不具合修正などのお知らせ一覧です。">
+  <link rel="canonical" href="https://zoo-log.onrender.com/updates/">
+  <link rel="stylesheet" href="/styles.css?v=20260318-1" />
+  <style>
+    .updates-list { list-style: none; padding: 0; margin: 24px 0; }
+    .updates-list li {
+      display: flex; gap: 14px; align-items: flex-start;
+      padding: 14px 4px; border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+    .updates-list .updates-date {
+      flex: 0 0 auto; font-size: 13px; font-weight: bold;
+      color: #2d6a4f; white-space: nowrap; padding-top: 1px;
+    }
+    .updates-list .updates-text { flex: 1 1 auto; }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1><a href="/" style="color:inherit;text-decoration:none;">全国動物園スタンプラリー</a></h1>
+    <div class="userbox" id="userbox">
+      <button id="menuBtn" class="hamburger-btn" aria-label="メニューを開く">☰</button>
+    </div>
+  </header>
+
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+  <nav id="drawer" class="drawer" aria-hidden="true">
+    <button id="drawerClose" class="drawer-close" aria-label="閉じる">×</button>
+    <div class="drawer__login">
+      <span id="loginStatus" class="drawer-login-status"></span>
+      <button class="linklike" id="googleLogin" type="button">Googleでログイン</button>
+      <button class="linklike" id="logoutBtn" type="button" style="display:none;">ログアウト</button>
+    </div>
+    <div class="drawer__inner">
+      <a href="/" class="drawer-link">トップページ</a>
+      <a href="/updates/" class="drawer-link" style="font-weight:bold;">📰 更新情報</a>
+      <a href="/about/" class="drawer-link">このアプリについて</a>
+      <a href="/missions/" class="drawer-link">🏆 ミッション</a>
+      <a id="galleryBtn" href="/gallery/" class="drawer-link" style="display:none;">📷 マイ写真ギャラリー</a>
+      <a href="/contact/" class="drawer-link">お問い合わせ</a>
+      <a href="/privacy/" class="drawer-link">プライバシーポリシー</a>
+      <hr class="drawer-divider">
+      <div class="drawer-section-label">姉妹サイト</div>
+      <a href="https://aquarium-log.onrender.com/" class="drawer-link" target="_blank" rel="noopener">🐟 全国水族館スタンプラリー</a>
+    </div>
+  </nav>
+
+  <div style="max-width: 800px; margin: 24px auto; padding: 0 16px; line-height: 1.9;">
+
+    <h1>📰 更新情報</h1>
+    <p style="opacity:0.7; font-size:13px;">新機能の追加・動物園データの更新・不具合修正などのお知らせ一覧です。</p>
+
+    <ul class="updates-list">
+      <li>
+        <span class="updates-date">2026/06/24</span>
+        <span class="updates-text">Xシェアを刷新：成績画像のデザイン一新＋PCでもカード画像付きで投稿できるように</span>
+      </li>
+      <li>
+        <span class="updates-date">2026/06/24</span>
+        <span class="updates-text">各動物園のX・Instagramリンクを追加</span>
+      </li>
+      <li>
+        <span class="updates-date">2026/06/24</span>
+        <span class="updates-text">管理者ダッシュボードを追加</span>
+      </li>
+      <li>
+        <span class="updates-date">2026/03/21</span>
+        <span class="updates-text">地図表示を追加。訪問済み・行きたいを色分けして表示できるように</span>
+      </li>
+    </ul>
+
+    <p><a href="/">← トップページに戻る</a></p>
+
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <a href="/contact/">お問い合わせ</a>
+      <a href="/privacy/">プライバシーポリシー</a>
+      <span>© 2025 全国動物園スタンプラリー</span>
+    </div>
+  </footer>
+
+  <script src="/nav.js?v=20260318-1"></script>
+</body>
+</html>

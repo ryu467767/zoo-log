@@ -81,6 +81,18 @@ class Inquiry(SQLModel, table=True):
     is_read: bool = Field(default=False)
 
 
+class ShareCard(SQLModel, table=True):
+    __tablename__ = "share_cards"
+
+    # X共有用の成績スナップショット画像。token単位で公開ページ /share/{token} を出す
+    token: str = Field(primary_key=True)        # uuid4 hex
+    image_path: str                              # /data/uploads からの相対パス
+    user_id: str = Field(default="", index=True)
+    visited: int = Field(default=0)
+    total: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Photo(SQLModel, table=True):
     __tablename__ = "photos"
 
