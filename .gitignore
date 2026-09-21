@@ -3,3 +3,7 @@ __pycache__/
 *.db
 geocode_cache.json
 not_updated.txt
+
+# ローカル検証用（run-local.ps1 が作る。本番とは別のDB・アップロード先）
+localdata/
+.venv/

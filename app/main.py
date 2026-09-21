@@ -41,6 +41,9 @@ BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-secret-change-me")
 DEBUG_ERRORS = os.getenv("DEBUG_ERRORS", "").lower() in ("1", "true", "yes")
 BUILD = os.getenv("BUILD", "dev")
+# ★ローカル検証専用のテストログインを許可するか。
+#   本番(render.yaml)ではこの環境変数を設定しない＝常に False。絶対に本番で有効化しないこと。
+ALLOW_DEV_LOGIN = os.getenv("ALLOW_DEV_LOGIN", "").lower() in ("1", "true", "yes")
 
 
 def require_key(request: Request):
@@ -307,6 +310,10 @@ def debug_oauth():
 
 @app.get("/login")
 async def login(request: Request):
+    # ローカル検証時はGoogleの認証情報が無いので、テストログインへ回す。
+    # ALLOW_DEV_LOGIN は本番(render.yaml)では未設定＝この分岐は本番では通らない。
+    if ALLOW_DEV_LOGIN and not os.getenv("GOOGLE_CLIENT_ID"):
+        return RedirectResponse(url="/dev-login")
     redirect_uri = f"{BASE_URL}/auth/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
@@ -335,6 +342,21 @@ async def auth_callback(request: Request):
 @app.get("/logout")
 def logout(request: Request):
     request.session.clear()
+    return RedirectResponse(url="/")
+
+@app.get("/dev-login")
+def dev_login(request: Request):
+    """ローカル検証用：Googleを使わずテストユーザーでログインする。
+    ALLOW_DEV_LOGIN=1 のときだけ有効。本番では無効（404）。"""
+    if not ALLOW_DEV_LOGIN:
+        raise HTTPException(404, "Not found")
+    uid = "google:dev-tester"
+    request.session["user_id"] = uid
+    request.session["email"] = "dev@example.com"
+    request.session["name"] = "ローカルテスト"
+    request.session["picture"] = None
+    with session() as db:
+        upsert_user_profile(db, uid, "dev@example.com", "ローカルテスト")
     return RedirectResponse(url="/")
 
 @app.get("/api/me")
