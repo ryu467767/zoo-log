@@ -29,6 +29,7 @@ from .crud import (
     set_want_to_go, upsert_user_profile, create_inquiry, list_inquiries,
 )
 from .import_csv import import_csv
+from .zoo_features import get_feature
 from pathlib import Path
 from fastapi.responses import FileResponse, HTMLResponse
 from uuid import uuid4
@@ -605,8 +606,515 @@ def serve_index():
 
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap():
-    path = WEB_DIR / "sitemap.xml"
-    return FileResponse(path, media_type="application/xml")
+    """静的ページ＋全動物園ページを含む sitemap を動的生成（園の追加に自動追従）。
+
+    以前は web/sitemap.xml を返していたが、5ページしか載せておらず
+    詳細ページが検索エンジンに伝わらなかったため、生成方式に変更した。"""
+    base = "https://zoo-log.onrender.com"
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    static_pages = [
+        ("/", "weekly", "1.0"),
+        ("/about/", "monthly", "0.8"),
+        ("/missions/", "monthly", "0.6"),
+        ("/updates/", "weekly", "0.5"),
+        ("/contact/", "monthly", "0.4"),
+        ("/privacy/", "yearly", "0.3"),
+    ]
+    parts = ['<?xml version="1.0" encoding="UTF-8"?>',
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for loc, freq, pri in static_pages:
+        parts.append(
+            f"  <url><loc>{base}{loc}</loc><lastmod>{today}</lastmod>"
+            f"<changefreq>{freq}</changefreq><priority>{pri}</priority></url>"
+        )
+    try:
+        with session() as db:
+            for z in list_zoos(db):
+                parts.append(
+                    f"  <url><loc>{base}/zoo/{z.id}</loc>"
+                    f"<lastmod>{today}</lastmod><changefreq>monthly</changefreq>"
+                    f"<priority>0.6</priority></url>"
+                )
+    except Exception:
+        pass  # DB障害時でも静的ページ分は返す
+    parts.append("</urlset>")
+    return Response(content="\n".join(parts), media_type="application/xml")
+
+
+# ===== 個別動物園ページ（SSR・SEO用）=====
+# 水族館側の /aquarium/{id} と同じ作り。施設ごとに固有のHTMLを返すことで、
+# 検索エンジンに園数ぶんの入口を持たせる。
+
+def _esc(s):
+    s = "" if s is None else str(s)
+    return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+             .replace('"', "&quot;").replace("'", "&#39;"))
+
+
+# models.py の has_* と対応。表示順もこの順。
+_ZOO_ANIMALS = [
+    ("has_elephant",   "🐘", "ゾウ"),
+    ("has_giraffe",    "🦒", "キリン"),
+    ("has_lion",       "🦁", "ライオン"),
+    ("has_tiger",      "🐅", "トラ"),
+    ("has_panda",      "🐼", "ジャイアントパンダ"),
+    ("has_red_panda",  "🦝", "レッサーパンダ"),
+    ("has_gorilla",    "🦍", "ゴリラ"),
+    ("has_hippo",      "🦛", "カバ"),
+    ("has_koala",      "🐨", "コアラ"),
+    ("has_polar_bear", "🐻‍❄️", "ホッキョクグマ"),
+]
+
+# 飼育している園が限られる動物（紹介文で見どころとして触れる）
+_ZOO_RARE_ANIMALS = {"has_panda", "has_koala", "has_gorilla", "has_polar_bear"}
+
+# 紹介文で使う地方区分（web/app.js の REGION_BY_PREF と同じ）
+_REGION_BY_PREF = {
+    "北海道": "北海道",
+    "青森県": "東北", "岩手県": "東北", "宮城県": "東北",
+    "秋田県": "東北", "山形県": "東北", "福島県": "東北",
+    "茨城県": "関東", "栃木県": "関東", "群馬県": "関東", "埼玉県": "関東",
+    "千葉県": "関東", "東京都": "関東", "神奈川県": "関東",
+    "新潟県": "中部", "富山県": "中部", "石川県": "中部", "福井県": "中部",
+    "山梨県": "中部", "長野県": "中部", "岐阜県": "中部", "静岡県": "中部", "愛知県": "中部",
+    "三重県": "近畿", "滋賀県": "近畿", "京都府": "近畿", "大阪府": "近畿",
+    "兵庫県": "近畿", "奈良県": "近畿", "和歌山県": "近畿",
+    "鳥取県": "中国", "島根県": "中国", "岡山県": "中国", "広島県": "中国", "山口県": "中国",
+    "徳島県": "四国", "香川県": "四国", "愛媛県": "四国", "高知県": "四国",
+    "福岡県": "九州・沖縄", "佐賀県": "九州・沖縄", "長崎県": "九州・沖縄", "熊本県": "九州・沖縄",
+    "大分県": "九州・沖縄", "宮崎県": "九州・沖縄", "鹿児島県": "九州・沖縄", "沖縄県": "九州・沖縄",
+}
+
+# ヘッダー／ドロワー／フッターは web/about/index.html などの静的ページと同じマークアップに揃えている。
+# （静的ページ側を変えたら、こちらも同じ内容に更新すること）
+ZOO_HEADER = """
+  <header>
+    <h1><a href="/" style="color:inherit;text-decoration:none;">全国動物園スタンプラリー</a></h1>
+    <div class="userbox" id="userbox">
+      <button id="menuBtn" class="hamburger-btn" aria-label="メニューを開く">☰</button>
+    </div>
+  </header>
+"""
+
+ZOO_DRAWER = """
+  <div id="drawerOverlay" class="drawer-overlay"></div>
+  <nav id="drawer" class="drawer" aria-hidden="true">
+    <button id="drawerClose" class="drawer-close" aria-label="閉じる">×</button>
+    <div class="drawer__login">
+      <span id="loginStatus" class="drawer-login-status"></span>
+      <button class="linklike" id="googleLogin" type="button">Googleでログイン</button>
+      <button class="linklike" id="logoutBtn" type="button" style="display:none;">ログアウト</button>
+    </div>
+    <div class="drawer__inner">
+      <a href="/" class="drawer-link">トップページ</a>
+      <a href="/updates/" class="drawer-link">📰 更新情報</a>
+      <a href="/about/" class="drawer-link">このアプリについて</a>
+      <a href="/missions/" class="drawer-link">🏆 ミッション</a>
+      <a id="galleryBtn" href="/gallery/" class="drawer-link" style="display:none;">📷 マイ写真ギャラリー</a>
+      <a href="/contact/" class="drawer-link">お問い合わせ</a>
+      <a href="/privacy/" class="drawer-link">プライバシーポリシー</a>
+      <hr class="drawer-divider">
+      <div class="drawer-section-label">姉妹サイト</div>
+      <a href="https://aquarium-log.onrender.com/" class="drawer-link" target="_blank" rel="noopener">🐟 全国水族館スタンプラリー</a>
+    </div>
+  </nav>
+"""
+
+ZOO_FOOTER = """
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <a href="/contact/">お問い合わせ</a>
+      <a href="/privacy/">プライバシーポリシー</a>
+      <a href="https://aquarium-log.onrender.com/" target="_blank" rel="noopener noreferrer">🐟 全国水族館スタンプラリー</a>
+      <span>© 2025 全国動物園スタンプラリー</span>
+    </div>
+  </footer>
+  <script src="/nav.js?v=20260318-1"></script>
+"""
+
+
+@app.get("/zoo/{zoo_id}", response_class=HTMLResponse, include_in_schema=False)
+def zoo_page(zoo_id: int):
+    with session() as db:
+        z = db.get(Zoo, zoo_id)
+        if not z:
+            raise HTTPException(404, "Zoo not found")
+        all_zoo = list_zoos(db)
+        same_pref = [x for x in all_zoo
+                     if x.prefecture == z.prefecture and x.id != z.id and not x.is_closed]
+        same_pref_count = len(same_pref)
+        related = same_pref[:8]
+        try:
+            visited_users = db.exec(
+                select(func.count(func.distinct(Visit.user_id)))
+                .where(Visit.zoo_id == zoo_id, Visit.visited == True)
+            ).one()
+            visited_users = int(visited_users or 0)
+        except Exception:
+            visited_users = 0
+
+    base = "https://zoo-log.onrender.com"
+    canonical = f"{base}/zoo/{z.id}"
+    loc = (z.prefecture or "") + (z.city or "")
+
+    animals = [(ic, lb) for key, ic, lb in _ZOO_ANIMALS if getattr(z, key, False)]
+    animals_html = "".join(f'<span class="zoo-animal">{ic} {lb}</span>' for ic, lb in animals)
+
+    # 紹介文（DBにある事実だけで組み立てる。営業時間や料金など未取得の情報は書かない）
+    intro_parts = []
+
+    region = _REGION_BY_PREF.get(z.prefecture or "", "")
+    p1 = f"{_esc(z.name)}は、{_esc(loc) or '所在地不明の場所'}にある動物園です。"
+    if region and z.prefecture:
+        # 「北海道エリア（北海道）」のような重複を避ける
+        area = _esc(region) if region == z.prefecture else f"{_esc(region)}エリア（{_esc(z.prefecture)}）"
+        p1 += f"{area}の動物園として、本サイトのスタンプラリーに登録されています。"
+    if z.is_closed:
+        closed_when = f"（{_esc(z.closed_at)}）" if z.closed_at else ""
+        p1 += f"なお、この施設は現在閉園しています{closed_when}。訪問の記録は思い出として残せます。"
+    intro_parts.append(p1)
+
+    # 園ごとの特徴（app/zoo_features.py に手で書いてある分だけ）
+    feature = get_feature(z.name)
+    if feature:
+        intro_parts.append(_esc(feature))
+
+    if animals:
+        names = "・".join(lb for ic, lb in animals[:6])
+        if len(animals) == 1:
+            # 1種類のときに「といった、全1種類の」は不自然なので言い切る
+            p2 = f"園内では{names}に会えます。"
+        else:
+            p2 = f"園内では{names}"
+            p2 += "など、" if len(animals) > 6 else "といった、"
+            p2 += f"全{len(animals)}種類の動物に会えます。"
+        rare = [lb for key, ic, lb in _ZOO_ANIMALS
+                if getattr(z, key, False) and key in _ZOO_RARE_ANIMALS]
+        if rare:
+            p2 += f"なかでも{('・'.join(rare))}は、全国でも見られる園が限られる動物です。"
+        intro_parts.append(p2)
+    else:
+        intro_parts.append(
+            "会える動物のデータは現在準備中です。詳しい展示内容は公式サイトをご確認ください。"
+        )
+
+    p3 = []
+    if z.url:
+        p3.append("開園時間・料金・イベントなどの最新情報は公式サイトで確認できます")
+    if z.twitter_id or z.instagram_id:
+        p3.append("X・InstagramのSNSでは日々の動物の様子が発信されています")
+    if z.lat is not None and z.lng is not None:
+        p3.append("上の地図から現在地からのルートも調べられます")
+    if p3:
+        intro_parts.append("。".join(p3) + "。")
+
+    p4 = "このアプリでは、訪問した日・訪問回数・写真・メモを動物園ごとに記録できます。"
+    if same_pref_count:
+        p4 += f"{_esc(z.prefecture)}には他にも{same_pref_count}か所の動物園が登録されているので、あわせてめぐってみてください。"
+    intro_parts.append(p4)
+
+    intro = "".join(f"<p>{s}</p>" for s in intro_parts)
+
+    # リンク（公式・SNS）
+    links = []
+    if z.url:
+        links.append(f'<a class="zoo-link" href="{_esc(z.url)}" target="_blank" rel="noopener noreferrer">公式サイト ↗</a>')
+    if z.twitter_id:
+        links.append(f'<a class="zoo-link" href="https://x.com/{_esc(z.twitter_id)}" target="_blank" rel="noopener noreferrer">X (旧Twitter)</a>')
+    if z.instagram_id:
+        links.append(f'<a class="zoo-link" href="https://www.instagram.com/{_esc(z.instagram_id)}/" target="_blank" rel="noopener noreferrer">Instagram</a>')
+    links_html = "".join(links)
+
+    # 地図（OpenStreetMap 埋め込み・JS不要）
+    map_html = ""
+    same_as = []
+    if z.url: same_as.append(z.url)
+    if z.twitter_id: same_as.append(f"https://x.com/{z.twitter_id}")
+    if z.instagram_id: same_as.append(f"https://www.instagram.com/{z.instagram_id}/")
+    if z.lat is not None and z.lng is not None:
+        d = 0.02
+        bbox = f"{z.lng-d}%2C{z.lat-d}%2C{z.lng+d}%2C{z.lat+d}"
+        src = (f"https://www.openstreetmap.org/export/embed.html?bbox={bbox}"
+               f"&layer=mapnik&marker={z.lat}%2C{z.lng}")
+        map_html = (f'<iframe class="zoo-map" src="{src}" loading="lazy" '
+                    f'title="{_esc(z.name)}の地図"></iframe>'
+                    f'<p class="zoo-maplink"><a href="https://www.openstreetmap.org/?mlat={z.lat}&mlon={z.lng}#map=15/{z.lat}/{z.lng}" '
+                    f'target="_blank" rel="noopener noreferrer">大きな地図で見る ↗</a></p>')
+
+    related_html = "".join(
+        f'<li><a href="/zoo/{x.id}">{_esc(x.name)}</a></li>' for x in related
+    ) or '<li>（同じ都道府県の他の動物園は登録されていません）</li>'
+
+    closed_badge = ""
+    if z.is_closed:
+        closed_badge = f'<span class="zoo-closed">閉園{(" " + _esc(z.closed_at)) if z.closed_at else ""}</span>'
+
+    visited_line = ""
+    if visited_users > 0:
+        visited_line = f'<p class="zoo-visited">このアプリで <b>{visited_users}</b> 人が訪問済みです。</p>'
+
+    # 構造化データ
+    ld_attraction = {
+        "@context": "https://schema.org",
+        "@type": "Zoo",
+        "name": z.name,
+        "url": canonical,
+        "address": {
+            "@type": "PostalAddress",
+            "addressRegion": z.prefecture or "",
+            "addressLocality": z.city or "",
+            "addressCountry": "JP",
+        },
+    }
+    if z.lat is not None and z.lng is not None:
+        ld_attraction["geo"] = {"@type": "GeoCoordinates", "latitude": z.lat, "longitude": z.lng}
+    if same_as:
+        ld_attraction["sameAs"] = same_as
+    ld_breadcrumb = {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": 1, "name": "ホーム", "item": base + "/"},
+            {"@type": "ListItem", "position": 2, "name": (z.prefecture or "") + "の動物園"},
+            {"@type": "ListItem", "position": 3, "name": z.name, "item": canonical},
+        ],
+    }
+    ld = (f'<script type="application/ld+json">{json.dumps(ld_attraction, ensure_ascii=False)}</script>'
+          f'<script type="application/ld+json">{json.dumps(ld_breadcrumb, ensure_ascii=False)}</script>')
+
+    desc = f"{z.name}（{loc}）の基本情報。会える動物・公式サイト・地図・アクセス。全国動物園スタンプラリーで訪問記録・写真・メモを管理できます。"
+
+    page = f"""<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{_esc(z.name)}（{_esc(z.prefecture)}）｜全国動物園スタンプラリー</title>
+  <meta name="description" content="{_esc(desc)}">
+  <link rel="canonical" href="{canonical}">
+  <meta property="og:title" content="{_esc(z.name)}（{_esc(z.prefecture)}）｜全国動物園スタンプラリー">
+  <meta property="og:description" content="{_esc(desc)}">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="{canonical}">
+  <meta property="og:site_name" content="全国動物園スタンプラリー">
+  <meta name="twitter:card" content="summary">
+  <meta name="theme-color" content="#2d6a4f">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  {ld}
+  <link rel="stylesheet" href="/styles.css?v=20260318-1">
+  <style>
+    /* ヘッダー常時固定（他ページと揃える） */
+    header {{
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 500 !important;
+      box-shadow: 0 2px 10px rgba(0,0,0,.12) !important;
+    }}
+    .zoo-wrap {{ max-width: 800px; margin: 18px auto 40px; padding: 0 16px; line-height: 1.85; }}
+    .zoo-wrap h1 {{ color: #1b4332; }}
+    .zoo-breadcrumb {{ font-size: 12px; color: #789; margin-bottom: 10px; }}
+    .zoo-breadcrumb a {{ color: #2d6a4f; text-decoration: none; }}
+    .zoo-loc {{ color: #456; font-size: 14px; margin: 2px 0 12px; }}
+    .zoo-links {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }}
+    .zoo-link {{ display: inline-block; background: #e8f3ec; color: #1b4332; border-radius: 999px;
+               padding: 6px 14px; font-size: 13px; text-decoration: none; font-weight: 700; }}
+    .zoo-map {{ width: 100%; height: 300px; border: 1px solid #d5e3d9; border-radius: 12px; }}
+    .zoo-maplink {{ font-size: 12px; margin: 4px 0 0; }}
+    .zoo-animals {{ display: flex; flex-wrap: wrap; gap: 7px; margin: 8px 0 4px; }}
+    .zoo-animal {{ background: #f2f8f4; border: 1px solid #d5e3d9; border-radius: 999px;
+                 padding: 4px 12px; font-size: 13.5px; }}
+    .zoo-cta {{ display: block; width: 100%; text-align: center; background: #2d6a4f; color: #fff;
+              padding: 13px; border-radius: 12px; font-weight: 700; text-decoration: none; margin: 22px 0;
+              border: none; font-size: 15px; font-family: inherit; cursor: pointer; }}
+    .zoo-cta:hover {{ background: #245840; }}
+    .zoo-cta:disabled {{ opacity: .6; cursor: default; }}
+    .zoo-cta.is-visited {{ background: #2a7d5a; }}
+    .zoo-cta.is-visited:hover {{ background: #23684b; }}
+    .zoo-done-box {{ max-width: 340px; }}
+    .zoo-done-text {{ font-size: 14px; color: #456; margin: 0 0 4px; }}
+    .zoo-want {{ display: block; width: 100%; margin: -8px 0 22px; padding: 12px;
+               background: transparent; border: 1px solid #ccc; border-radius: 12px;
+               font-size: 15px; font-family: inherit; font-weight: 700; color: #888;
+               cursor: pointer; transition: background .15s, color .15s, border-color .15s; }}
+    .zoo-want:hover:not(.active) {{ border-color: #bbb; background: rgba(0,0,0,.02); color: #666; }}
+    .zoo-want.active {{ background: #fff8e6; border-color: #f6a623; color: #d4820a; }}
+    .zoo-want:disabled {{ opacity: .6; cursor: default; }}
+    .zoo-visited {{ color: #2a7d5a; font-size: 14px; }}
+    .zoo-closed {{ background: #b00; color: #fff; font-size: 12px; border-radius: 6px; padding: 2px 8px; margin-left: 8px; }}
+    .zoo-related li {{ margin: 2px 0; }}
+    .zoo-related a {{ color: #2d6a4f; }}
+  </style>
+</head>
+<body>
+{ZOO_HEADER}
+{ZOO_DRAWER}
+  <div class="zoo-wrap">
+    <nav class="zoo-breadcrumb"><a href="/">ホーム</a> ＞ {_esc(z.prefecture)}の動物園 ＞ {_esc(z.name)}</nav>
+
+    <h1>{_esc(z.name)}{closed_badge}</h1>
+    <p class="zoo-loc">📍 {_esc(loc) or "所在地不明"}</p>
+
+    <div class="zoo-links">{links_html}</div>
+
+    {map_html}
+
+    <h2>この動物園で会える動物</h2>
+    <div class="zoo-animals">{animals_html or "（動物データは準備中です）"}</div>
+
+    <h2>{_esc(z.name)}について</h2>
+    {intro}
+    {visited_line}
+
+    <button type="button" class="zoo-cta" id="zooVisitBtn" disabled>このアプリで訪問を記録する</button>
+    <button type="button" class="zoo-want" id="zooWantBtn" hidden>行きたい☆</button>
+
+    <h2>{_esc(z.prefecture)}の他の動物園</h2>
+    <ul class="zoo-related">{related_html}</ul>
+
+    <p style="margin-top:24px;"><a href="/">← 全国の動物園一覧に戻る</a></p>
+  </div>
+
+  <!-- 訪問を記録しました ポップアップ -->
+  <div id="zooDoneModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="modal-box zoo-done-box">
+      <p class="modal-title">✅ 訪問を記録しました</p>
+      <p class="zoo-done-text" id="zooDoneText"></p>
+      <div class="modal-actions">
+        <button id="zooDoneTop" class="modal-btn modal-btn--primary">トップに戻る</button>
+        <button id="zooDoneClose" class="modal-btn modal-btn--cancel">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 訪問済を解除しますか？ ポップアップ -->
+  <div id="zooUndoModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
+    <div class="modal-box zoo-done-box">
+      <p class="modal-title">訪問済を解除しますか？</p>
+      <p class="zoo-done-text">訪問日や訪問回数がリセットされます。</p>
+      <div class="modal-actions">
+        <button id="zooUndoOk" class="modal-btn modal-btn--secondary">解除する</button>
+        <button id="zooUndoCancel" class="modal-btn modal-btn--cancel">やめる</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {{
+    var ZOO_ID = {z.id};
+    var ZOO_NAME = {json.dumps(z.name, ensure_ascii=False)};
+    var ZOO_CLOSED = {json.dumps(bool(z.is_closed))};
+    var btn = document.getElementById('zooVisitBtn');
+    var wantBtn = document.getElementById('zooWantBtn');
+    var doneModal = document.getElementById('zooDoneModal');
+    var doneText = document.getElementById('zooDoneText');
+    var undoModal = document.getElementById('zooUndoModal');
+    var loggedIn = false, visited = false, wantToGo = false, csrf = '';
+
+    function paint() {{
+      if (!loggedIn) {{
+        btn.textContent = 'ログインして訪問を記録する';
+        btn.classList.remove('is-visited');
+      }} else {{
+        btn.textContent = visited ? '訪問済✅（解除）' : 'このアプリで訪問を記録する';
+        btn.classList.toggle('is-visited', visited);
+      }}
+      btn.disabled = false;
+
+      var showWant = loggedIn && !ZOO_CLOSED;
+      wantBtn.hidden = !showWant;
+      if (showWant) {{
+        wantBtn.textContent = wantToGo ? '行きたい★' : '行きたい☆';
+        wantBtn.classList.toggle('active', wantToGo);
+        wantBtn.disabled = false;
+      }}
+    }}
+
+    function showDone() {{
+      doneText.textContent = ZOO_NAME + ' を訪問済にしました。';
+      doneModal.style.display = '';
+    }}
+    function hide(m) {{ m.style.display = 'none'; }}
+
+    document.getElementById('zooDoneTop').onclick = function () {{ location.href = '/'; }};
+    document.getElementById('zooDoneClose').onclick = function () {{ hide(doneModal); }};
+    doneModal.onclick = function (e) {{ if (e.target === doneModal) hide(doneModal); }};
+    document.getElementById('zooUndoCancel').onclick = function () {{ hide(undoModal); }};
+    undoModal.onclick = function (e) {{ if (e.target === undoModal) hide(undoModal); }};
+
+    function setVisited(next) {{
+      btn.disabled = true;
+      return fetch('/api/zoos/' + ZOO_ID + '/visited', {{
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: {{ 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }},
+        body: JSON.stringify({{ visited: next }})
+      }}).then(function (r) {{
+        if (!r.ok) throw new Error('failed');
+        visited = next;
+        paint();
+        if (next) showDone();
+      }}).catch(function () {{
+        paint();
+        alert('通信に失敗しました。時間をおいて試してください。');
+      }});
+    }}
+
+    document.getElementById('zooUndoOk').onclick = function () {{
+      hide(undoModal);
+      setVisited(false);
+    }};
+
+    btn.onclick = function () {{
+      if (!loggedIn) {{ location.href = '/login'; return; }}
+      if (visited) {{ undoModal.style.display = ''; return; }}
+      setVisited(true);
+    }};
+
+    wantBtn.onclick = function () {{
+      if (wantBtn.disabled) return;
+      wantBtn.disabled = true;
+      var next = !wantToGo;
+      wantToGo = next;
+      paint();
+      fetch('/api/zoos/' + ZOO_ID + '/want_to_go', {{
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: {{ 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }},
+        body: JSON.stringify({{ want_to_go: next }})
+      }}).then(function (r) {{
+        if (!r.ok) throw new Error('failed');
+      }}).catch(function () {{
+        wantToGo = !next;
+        paint();
+        alert('通信に失敗しました。時間をおいて試してください。');
+      }}).then(function () {{ wantBtn.disabled = false; }});
+    }};
+
+    // 初期状態の取得（ログイン状態・訪問済みかどうか・CSRFトークン）
+    fetch('/api/me', {{ credentials: 'same-origin' }})
+      .then(function (r) {{ return r.ok ? r.json() : null; }})
+      .then(function (me) {{
+        loggedIn = !!(me && me.user_id);
+        paint();
+        if (!loggedIn) return null;
+        return Promise.all([
+          fetch('/api/csrf', {{ credentials: 'same-origin' }}).then(function (r) {{ return r.json(); }}),
+          fetch('/api/zoos', {{ credentials: 'same-origin' }}).then(function (r) {{ return r.json(); }})
+        ]).then(function (res) {{
+          csrf = (res[0] && res[0].token) || '';
+          var mine = (res[1] || []).filter(function (x) {{ return x.id === ZOO_ID; }})[0];
+          visited = !!(mine && mine.visited);
+          wantToGo = !!(mine && mine.want_to_go);
+          paint();
+        }});
+      }})
+      .catch(function () {{ paint(); }});
+  }})();
+  </script>
+{ZOO_FOOTER}
+</body>
+</html>"""
+    return HTMLResponse(content=page)
 
 @app.get("/api/user/photos")
 def user_all_photos(request: Request):
