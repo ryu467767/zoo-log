@@ -27,9 +27,11 @@ $env:SESSION_SECRET = "local-dev-secret"
 $env:BASE_URL       = "http://localhost:8000"
 $env:DEBUG_ERRORS   = "1"
 
-# Seed zoo data into the local DB on startup (idempotent: skips existing).
-# Lets you test with the full zoo list locally. Not set in production.
-$env:CSV_PATH       = Join-Path $PSScriptRoot "zoos_with_animals.csv"
+# Seed zoo data into the local DB on startup (idempotent: upsert).
+# Use zoos_final.csv: it is the geocoded output and matches production.
+# (zoos_with_animals.csv is the geocoder INPUT and has almost no lat/lng,
+#  so the map looks empty when you seed from it.)
+$env:CSV_PATH       = Join-Path $PSScriptRoot "zoos_final.csv"
 
 New-Item -ItemType Directory -Force -Path $env:DB_DIR     | Out-Null
 New-Item -ItemType Directory -Force -Path $env:UPLOAD_DIR | Out-Null

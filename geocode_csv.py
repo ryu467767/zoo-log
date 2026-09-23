@@ -32,14 +32,48 @@ def save_cache(cache):
         json.dump(cache, f, ensure_ascii=False, indent=2)
 
 
-def geocode(query: str):
-    params = {"q": query, "format": "jsonv2", "limit": 1}
+# 検索の邪魔になる法人格の接頭辞。付いたままだと地図データに一致しない
+# （例:「地方独立行政法人天王寺動物園」→ ヒットしない / 「天王寺動物園」→ ヒットする）
+NOISE_PREFIXES = [
+    "地方独立行政法人", "公益財団法人", "一般財団法人", "公益社団法人",
+    "一般社団法人", "株式会社", "有限会社", "特定非営利活動法人",
+]
+
+
+def strip_noise(name: str) -> str:
+    out = name
+    for n in NOISE_PREFIXES:
+        out = out.replace(n, "")
+    return out.strip()
+
+
+def _pref_matches(hit: dict, pref: str) -> bool:
+    """取得した座標が期待した都道府県のものか確認する。
+
+    過去に「東京都立大島公園」が京都の座標になった事故があったため、
+    県が一致しない結果は採用しない。"""
+    if not pref:
+        return True
+    disp = hit.get("display_name", "") or ""
+    addr = hit.get("address", {}) or {}
+    state = addr.get("province") or addr.get("state") or ""
+    base = pref.replace("県", "").replace("府", "").replace("都", "")
+    return (pref in disp) or (base in disp) or (base in state)
+
+
+def geocode(query: str, pref: str = ""):
+    """pref を渡すと、その都道府県に入っている結果だけを返す。"""
+    params = {
+        "q": query, "format": "jsonv2", "limit": 3,
+        "addressdetails": 1, "countrycodes": "jp",
+    }
     r = requests.get(NOMINATIM_URL, params=params, headers=HEADERS, timeout=30)
     r.raise_for_status()
     data = r.json()
-    if not data:
-        return None
-    return float(data[0]["lat"]), float(data[0]["lon"])
+    for hit in data:
+        if _pref_matches(hit, pref):
+            return float(hit["lat"]), float(hit["lon"])
+    return None
 
 
 def main():
@@ -65,7 +99,9 @@ def main():
         if row.get("lat") and row.get("lng"):
             continue
 
-        q = f'{row["prefecture"]} {row["city"]} {row["name"]}'.strip()
+        pref = row["prefecture"]
+        clean = strip_noise(row["name"])
+        q = f'{pref} {row["city"]} {clean}'.strip()
 
         if q in cache:
             row["lat"], row["lng"] = cache[q]
@@ -73,16 +109,23 @@ def main():
             continue
 
         try:
-            res = geocode(q)
+            # 市区町村つき → 県のみ → 施設名のみ の順に試す
+            attempts = [
+                q,
+                f'{pref} {clean}'.strip(),
+                clean,
+            ]
+            res = None
+            for a in attempts:
+                res = geocode(a, pref)
+                if res:
+                    break
+                time.sleep(1.1)
             if res is None:
-                # フォールバック：市区町村を省いて再検索
-                q2 = f'{row["prefecture"]} {row["name"]}'.strip()
-                res = geocode(q2)
-                if res is None:
-                    print(f"  [FAILED] {q}")
-                    failed += 1
-                    time.sleep(1.1)
-                    continue
+                print(f"  [FAILED] {q}")
+                failed += 1
+                time.sleep(1.1)
+                continue
             lat, lng = res
             row["lat"] = lat
             row["lng"] = lng
