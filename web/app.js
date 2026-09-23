@@ -90,7 +90,9 @@ async function apiPut(path, body) {
 
 function match(item, q) {
   if (!q) return true;
-  const t = (item.name + " " + item.prefecture + " " + item.city + " " + item.location_raw).toLowerCase();
+  // 愛称でも引けるようにする（例:「のんほいパーク」→ 豊橋総合動植物公園）
+  const alias = (item.aliases || []).join(" ");
+  const t = (item.name + " " + alias + " " + item.prefecture + " " + item.city + " " + item.location_raw).toLowerCase();
   return t.includes(q.toLowerCase());
 }
 
@@ -1613,8 +1615,11 @@ function initSuggestions() {
       return;
     }
     const lq = q.toLowerCase();
+    // 正式名称だけでなく愛称でも候補に出す
+    const hitAlias = (item) =>
+      (item.aliases || []).find(a => a.toLowerCase().includes(lq));
     const matches = state.items
-      .filter(item => item.name.toLowerCase().includes(lq))
+      .filter(item => item.name.toLowerCase().includes(lq) || hitAlias(item))
       .slice(0, 8);
     if (!matches.length) {
       list.style.display = 'none';
@@ -1623,7 +1628,9 @@ function initSuggestions() {
     list.innerHTML = '';
     for (const item of matches) {
       const li = document.createElement('li');
-      li.textContent = item.name;
+      const a = item.name.toLowerCase().includes(lq) ? null : hitAlias(item);
+      // 愛称でヒットした場合は、どの園かわかるよう正式名称を併記する
+      li.textContent = a ? `${a}（${item.name}）` : item.name;
       li.addEventListener('click', () => {
         qEl.value = item.name;
         list.style.display = 'none';

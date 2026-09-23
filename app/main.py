@@ -30,6 +30,7 @@ from .crud import (
 )
 from .import_csv import import_csv
 from .zoo_features import get_feature
+from .zoo_aliases import get_aliases
 from pathlib import Path
 from fastapi.responses import FileResponse, HTMLResponse
 from uuid import uuid4
@@ -387,6 +388,20 @@ def stats(request: Request):
         return {"total": total_n, "visited": len(visited_n)}
 
 
+def _safe_visit_dates(v) -> list:
+    """visit_dates は '["2024-03-15", ...]' の JSON文字列で入っている想定。
+    万一壊れた値が入っていても、その1件のせいで一覧API全体が500にならないようにする。
+    （水族館側と同じ対応）"""
+    raw = getattr(v, "visit_dates", None) if v else None
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
 @app.get("/api/zoos")
 def zoos(request: Request):
     uid = get_user_id(request)
@@ -406,6 +421,7 @@ def zoos(request: Request):
             out.append({
                 "id": z.id,
                 "name": z.name,
+                "aliases": get_aliases(z.name),
                 "prefecture": z.prefecture,
                 "city": z.city,
                 "location_raw": z.location_raw,
@@ -416,7 +432,7 @@ def zoos(request: Request):
                 "visited": bool(v.visited) if v else False,
                 "visited_at": v.visited_at.isoformat() if (v and v.visited_at) else None,
                 "visit_count": v.visit_count if v else 0,
-                "visit_dates": json.loads(v.visit_dates) if (v and v.visit_dates) else [],
+                "visit_dates": _safe_visit_dates(v),
                 "want_to_go": bool(v.want_to_go) if v else False,
                 "note": v.note if v else "",
                 "has_photos": z.id in photo_zoo_ids,
@@ -445,6 +461,7 @@ def public_zoos():
         return [{
             "id": z.id,
             "name": z.name,
+            "aliases": get_aliases(z.name),
             "prefecture": z.prefecture,
             "city": z.city,
             "location_raw": z.location_raw,
@@ -760,11 +777,17 @@ def zoo_page(zoo_id: int):
     animals = [(ic, lb) for key, ic, lb in _ZOO_ANIMALS if getattr(z, key, False)]
     animals_html = "".join(f'<span class="zoo-animal">{ic} {lb}</span>' for ic, lb in animals)
 
+    # 愛称（例:「のんほいパーク」）。検索エンジン向けに本文と説明文へ入れる
+    aliases = get_aliases(z.name)
+    alias_main = aliases[0] if aliases else ""
+
     # 紹介文（DBにある事実だけで組み立てる。営業時間や料金など未取得の情報は書かない）
     intro_parts = []
 
     region = _REGION_BY_PREF.get(z.prefecture or "", "")
     p1 = f"{_esc(z.name)}は、{_esc(loc) or '所在地不明の場所'}にある動物園です。"
+    if alias_main:
+        p1 += f"「{_esc(alias_main)}」の愛称で親しまれています。"
     if region and z.prefecture:
         # 「北海道エリア（北海道）」のような重複を避ける
         area = _esc(region) if region == z.prefecture else f"{_esc(region)}エリア（{_esc(z.prefecture)}）"
@@ -866,6 +889,9 @@ def zoo_page(zoo_id: int):
             "addressCountry": "JP",
         },
     }
+    if aliases:
+        # 愛称を構造化データにも載せる（1件なら文字列、複数なら配列）
+        ld_attraction["alternateName"] = aliases if len(aliases) > 1 else aliases[0]
     if z.lat is not None and z.lng is not None:
         ld_attraction["geo"] = {"@type": "GeoCoordinates", "latitude": z.lat, "longitude": z.lng}
     if same_as:
@@ -882,7 +908,8 @@ def zoo_page(zoo_id: int):
     ld = (f'<script type="application/ld+json">{json.dumps(ld_attraction, ensure_ascii=False)}</script>'
           f'<script type="application/ld+json">{json.dumps(ld_breadcrumb, ensure_ascii=False)}</script>')
 
-    desc = f"{z.name}（{loc}）の基本情報。会える動物・公式サイト・地図・アクセス。全国動物園スタンプラリーで訪問記録・写真・メモを管理できます。"
+    alias_desc = f"愛称は{alias_main}。" if alias_main else ""
+    desc = f"{z.name}（{loc}）の基本情報。{alias_desc}会える動物・公式サイト・地図・アクセス。全国動物園スタンプラリーで訪問記録・写真・メモを管理できます。"
 
     page = f"""<!doctype html>
 <html lang="ja">
