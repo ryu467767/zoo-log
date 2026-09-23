@@ -2363,3 +2363,123 @@ body.lb-open { overflow: hidden; }
   text-align: center;
   opacity: .9;
 }
+
+/* ===== お知らせベル（ヘッダーの更新情報ポップアップ）=====
+   水族館側とトンマナを揃える。配色は動物園の緑、バッジの赤は警告色なので共通。 */
+.bell-wrap{
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.bell-btn{
+  position: relative;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  color: #fff;
+  display: flex;
+  align-items: center;
+}
+
+.bell-icon{
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.bell-btn.is-shaking{
+  animation: bellShake 4.5s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+@keyframes bellShake{
+  0%, 92%, 100% { transform: rotate(0deg); }
+  93%   { transform: rotate(14deg); }
+  94.5% { transform: rotate(-12deg); }
+  96%   { transform: rotate(8deg); }
+  97.5% { transform: rotate(-4deg); }
+}
+
+.bell-badge{
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ff5a3c;
+}
+
+.bell-popover{
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 280px;
+  max-width: 78vw;
+  background: #fff;
+  color: #1b4332;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+  padding: 14px;
+  z-index: 600;
+}
+
+.bell-popover__title{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.bell-popover__list{
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.bell-popover__list li{
+  font-size: 12.5px;
+  line-height: 1.6;
+  padding: 7px 0;
+  border-bottom: 1px solid #eef4f0;
+}
+
+.bell-popover__list li:last-child{ border-bottom: none; }
+
+.bell-popover__date{
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #2d6a4f;
+  margin-bottom: 2px;
+}
+
+.bell-popover__more{
+  display: block;
+  text-align: center;
+  font-size: 12.5px;
+  color: #2d6a4f;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.bell-popover__more:hover{ text-decoration: underline; }
+
+/* ===== 絵文字の代わりに使う線画SVGアイコン（ハンバーガーメニュー等）===== */
+.nav-icon{
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.hamburger-icon{
+  width: 18px;
+  height: 18px;
+  display: block;
+}

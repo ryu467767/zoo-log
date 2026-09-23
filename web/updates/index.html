@@ -6,7 +6,7 @@
   <title>更新情報｜全国動物園スタンプラリー</title>
   <meta name="description" content="全国動物園スタンプラリーの更新履歴。新機能の追加・動物園データの更新・不具合修正などのお知らせ一覧です。">
   <link rel="canonical" href="https://zoo-log.onrender.com/updates/">
-  <link rel="stylesheet" href="/styles.css?v=20260923-1" />
+  <link rel="stylesheet" href="/styles.css?v=20260924-1" />
   <style>
     .updates-list { list-style: none; padding: 0; margin: 24px 0; }
     .updates-list li {
@@ -25,7 +25,22 @@
   <header>
     <h1><a href="/" style="color:inherit;text-decoration:none;">全国動物園スタンプラリー</a></h1>
     <div class="userbox" id="userbox">
-      <button id="menuBtn" class="hamburger-btn" aria-label="メニューを開く">☰</button>
+      <div class="bell-wrap">
+        <button id="updateBellBtn" class="bell-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="更新情報のお知らせ">
+          <svg class="bell-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <span id="bellBadge" class="bell-badge" hidden></span>
+        </button>
+        <div id="bellPopover" class="bell-popover" hidden>
+          <div class="bell-popover__title"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h13a2 2 0 0 1 2 2V17a1.5 1.5 0 0 1-1.5 1.5H6A2 2 0 0 1 4 16.5v-11z"/><path d="M17 18.5A1.5 1.5 0 0 0 18.5 17V9h2v8a1.5 1.5 0 0 1-1.5 1.5"/><line x1="7" y1="9" x2="14" y2="9"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg>更新情報</div>
+          <ul class="bell-popover__list">
+            <li><span class="bell-popover__date">2026/09/23</span>動物園ごとの詳細ページを追加しました。紹介・地図・会える動物をまとめて見られます。</li>
+            <li><span class="bell-popover__date">2026/09/23</span>都道府県別マップを追加しました。日本地図で制覇状況が一目で分かります。</li>
+            <li><span class="bell-popover__date">2026/09/23</span>写真をまとめて追加できるようになりました。押すと全画面で見られます。</li>
+          </ul>
+          <a href="/updates/" class="bell-popover__more">すべての更新情報を見る →</a>
+        </div>
+      </div>
+      <button id="menuBtn" class="hamburger-btn" aria-label="メニューを開く"><svg class="hamburger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
     </div>
   </header>
 
@@ -38,13 +53,13 @@
       <button class="linklike" id="logoutBtn" type="button" style="display:none;">ログアウト</button>
     </div>
     <div class="drawer__inner">
-      <a href="/" class="drawer-link">トップページ</a>
-      <a href="/updates/" class="drawer-link" style="font-weight:bold;">📰 更新情報</a>
-      <a href="/about/" class="drawer-link">このアプリについて</a>
-      <a href="/missions/" class="drawer-link">🏆 ミッション</a>
-      <a id="galleryBtn" href="/gallery/" class="drawer-link" style="display:none;">📷 マイ写真ギャラリー</a>
-      <a href="/contact/" class="drawer-link">お問い合わせ</a>
-      <a href="/privacy/" class="drawer-link">プライバシーポリシー</a>
+      <a href="/" class="drawer-link"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9"/></svg>トップページ</a>
+      <a href="/updates/" class="drawer-link"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h13a2 2 0 0 1 2 2V17a1.5 1.5 0 0 1-1.5 1.5H6A2 2 0 0 1 4 16.5v-11z"/><path d="M17 18.5A1.5 1.5 0 0 0 18.5 17V9h2v8a1.5 1.5 0 0 1-1.5 1.5"/><line x1="7" y1="9" x2="14" y2="9"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg>更新情報</a>
+      <a href="/about/" class="drawer-link"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><line x1="12" y1="11" x2="12" y2="16.5"/><circle cx="12" cy="7.8" r="0.9" fill="currentColor" stroke="none"/></svg>このアプリについて</a>
+      <a href="/missions/" class="drawer-link"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10v3.5a5 5 0 0 1-10 0V4z"/><path d="M7 5H4.5A2.5 2.5 0 0 0 7 9"/><path d="M17 5h2.5A2.5 2.5 0 0 1 17 9"/><path d="M12 12.5V16"/><path d="M9 20h6"/><path d="M9.5 16.5h5v3.5h-5z"/></svg>ミッション</a>
+      <a id="galleryBtn" href="/gallery/" class="drawer-link" style="display:none;"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h3.2L9 6h6l1.8 2.5H20v10H4v-10z"/><circle cx="12" cy="13" r="3.2"/></svg>マイ写真ギャラリー</a>
+      <a href="/contact/" class="drawer-link"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 6.5l8 6.5 8-6.5"/></svg>お問い合わせ</a>
+      <a href="/privacy/" class="drawer-link"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="11" width="13" height="8.5" rx="2"/><path d="M8.5 11V7.8a3.5 3.5 0 0 1 7 0V11"/></svg>プライバシーポリシー</a>
       <hr class="drawer-divider">
       <div class="drawer-section-label">姉妹サイト</div>
       <a href="https://aquarium-log.onrender.com/" class="drawer-link" target="_blank" rel="noopener">🐟 全国水族館スタンプラリー</a>
@@ -53,10 +68,34 @@
 
   <div style="max-width: 800px; margin: 24px auto; padding: 0 16px; line-height: 1.9;">
 
-    <h1>📰 更新情報</h1>
+    <h1 style="display:flex;align-items:center;gap:8px;"><svg class="nav-icon" style="width:26px;height:26px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h13a2 2 0 0 1 2 2V17a1.5 1.5 0 0 1-1.5 1.5H6A2 2 0 0 1 4 16.5v-11z"/><path d="M17 18.5A1.5 1.5 0 0 0 18.5 17V9h2v8a1.5 1.5 0 0 1-1.5 1.5"/><line x1="7" y1="9" x2="14" y2="9"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg>更新情報</h1>
     <p style="opacity:0.7; font-size:13px;">新機能の追加・動物園データの更新・不具合修正などのお知らせ一覧です。</p>
 
     <ul class="updates-list">
+      <li>
+        <span class="updates-date">2026/09/23</span>
+        <span class="updates-text">動物園ごとの詳細ページを追加しました。紹介・地図・会える動物をまとめて見られます。</span>
+      </li>
+      <li>
+        <span class="updates-date">2026/09/23</span>
+        <span class="updates-text">都道府県別マップを追加しました。日本地図で制覇状況が一目で分かります。</span>
+      </li>
+      <li>
+        <span class="updates-date">2026/09/23</span>
+        <span class="updates-text">写真をまとめて追加できるようになりました。写真を押すと全画面で見られます。</span>
+      </li>
+      <li>
+        <span class="updates-date">2026/09/23</span>
+        <span class="updates-text">愛称でも検索できるようになりました（「のんほいパーク」「ズーラシア」など）。</span>
+      </li>
+      <li>
+        <span class="updates-date">2026/09/23</span>
+        <span class="updates-text">地図に表示されていなかった9園の位置情報を追加しました。</span>
+      </li>
+      <li>
+        <span class="updates-date">2026/09/23</span>
+        <span class="updates-text">メニューのアイコンを線画に統一し、ヘッダーにお知らせベルを追加しました。</span>
+      </li>
       <li>
         <span class="updates-date">2026/06/24</span>
         <span class="updates-text">Xシェアを刷新：成績画像のデザイン一新＋PCでもカード画像付きで投稿できるように</span>
@@ -83,6 +122,6 @@
     </div>
   </footer>
 
-  <script src="/nav.js?v=20260923-1"></script>
+  <script src="/nav.js?v=20260924-1"></script>
 </body>
 </html>

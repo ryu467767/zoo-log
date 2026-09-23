@@ -50,4 +50,47 @@
       });
     })
     .catch(function () {});
+
+  // ===== お知らせベル（ヘッダーの更新情報ポップアップ）=====
+  // 最新の日付は HTML に書かれた1件目の .bell-popover__date を読む。
+  // 前回見た日付より新しければ、バッジを出してベルを揺らす。
+  var bellBtn = document.getElementById('updateBellBtn');
+  var bellBadge = document.getElementById('bellBadge');
+  var bellPop = document.getElementById('bellPopover');
+  if (bellBtn && bellBadge && bellPop) {
+    var bellDateEl = bellPop.querySelector('.bell-popover__date');
+    var bellLatest = bellDateEl ? bellDateEl.textContent.trim() : '';
+    // 水族館とは別のキーにする（同じブラウザで両方見ても混ざらないように）
+    var BELL_SEEN_KEY = 'zoo_lastSeenUpdate';
+    var bellLastSeen = '';
+    try { bellLastSeen = localStorage.getItem(BELL_SEEN_KEY) || ''; } catch (e) {}
+
+    if (bellLatest && bellLatest > bellLastSeen) {
+      bellBadge.hidden = false;
+      bellBtn.classList.add('is-shaking');
+    }
+
+    var closeBellPopover = function () {
+      bellPop.hidden = true;
+      bellBtn.setAttribute('aria-expanded', 'false');
+    };
+    var openBellPopover = function () {
+      bellPop.hidden = false;
+      bellBtn.setAttribute('aria-expanded', 'true');
+      bellBadge.hidden = true;
+      bellBtn.classList.remove('is-shaking');
+      try { if (bellLatest) localStorage.setItem(BELL_SEEN_KEY, bellLatest); } catch (e) {}
+    };
+
+    bellBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (bellPop.hidden) openBellPopover(); else closeBellPopover();
+    });
+    document.addEventListener('click', function (e) {
+      if (!bellPop.hidden && !bellPop.contains(e.target) && e.target !== bellBtn) closeBellPopover();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeBellPopover();
+    });
+  }
 })();
