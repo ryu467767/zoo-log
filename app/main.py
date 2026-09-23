@@ -18,7 +18,7 @@ from starlette.responses import Response
 from authlib.integrations.starlette_client import OAuth
 from fastapi import UploadFile, File
 from fastapi.staticfiles import StaticFiles
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 from sqlmodel import select
 from sqlalchemy import func
@@ -120,7 +120,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
 
             # ルール：写真アップロードは厳しめ
-            if request.method == "POST" and "/photos" in path:
+            # ただし一括アップロードは「動物園1園＝1リクエスト」なので、
+            # 複数園まとめて追加すると10回ではすぐ足りなくなる。別枠で少し緩める。
+            if request.method == "POST" and path.endswith("/photos/bulk"):
+                ok = _hit(f"upbulk:{ip}", limit=30, window_sec=60)  # 1分30回
+            elif request.method == "POST" and "/photos" in path:
                 ok = _hit(f"up:{ip}", limit=10, window_sec=60)  # 1分10回
             # 認証も厳しめ
             elif path.startswith("/auth/"):
@@ -1233,6 +1237,82 @@ async def upload_photo(zoo_id: int, request: Request, file: UploadFile = File(..
         db.refresh(p)
 
     return {"id": p.id, "url": "/uploads/" + p.path, "created_at": p.created_at.isoformat()}
+
+
+# ===== 写真のまとめて追加 =====
+
+BULK_MAX_FILES = 20   # 1リクエストあたりの上限
+
+
+def _is_image_bytes(b: bytes) -> bool:
+    if b.startswith(b"\xff\xd8\xff"):                      # JPEG
+        return True
+    if b.startswith(b"\x89PNG\r\n\x1a\n"):                 # PNG
+        return True
+    if b.startswith(b"RIFF") and b[8:12] == b"WEBP":       # WEBP
+        return True
+    return False
+
+
+@app.post("/api/zoos/{zoo_id}/photos/bulk")
+async def upload_photos_bulk(zoo_id: int, request: Request,
+                             files: List[UploadFile] = File(...)):
+    """1つの動物園に複数枚まとめてアップロードする。
+
+    1枚ずつ POST するとレート制限（写真は1分10回）にすぐ当たるので、
+    まとめて1リクエストで受け取る。失敗したファイルはスキップして結果に含める。
+    """
+    uid = get_user_id(request)
+
+    with session() as db:
+        if not db.get(Zoo, zoo_id):
+            raise HTTPException(404, "Zoo not found")
+
+    if not files:
+        raise HTTPException(400, "No files")
+    if len(files) > BULK_MAX_FILES:
+        raise HTTPException(400, f"Too many files (max {BULK_MAX_FILES})")
+
+    safe_uid = uid.replace(":", "_")
+    rel_dir = os.path.join(safe_uid, str(zoo_id))
+    abs_dir = os.path.join(UPLOAD_DIR, rel_dir)
+    os.makedirs(abs_dir, exist_ok=True)
+
+    MAX_BYTES = 5 * 1024 * 1024
+    saved, errors = [], []
+
+    for f in files:
+        name = f.filename or "(no name)"
+        try:
+            ext = os.path.splitext(name)[1].lower()
+            if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+                ext = ".jpg"
+
+            data = await f.read()
+            if len(data) > MAX_BYTES:
+                errors.append({"name": name, "reason": "5MBを超えています"})
+                continue
+            if not _is_image_bytes(data):
+                errors.append({"name": name, "reason": "画像ファイルではありません"})
+                continue
+
+            fname = f"{uuid4().hex}{ext}"
+            with open(os.path.join(abs_dir, fname), "wb") as out:
+                out.write(data)
+
+            rel_path = os.path.join(rel_dir, fname).replace("\\", "/")
+            with session() as db:
+                p = Photo(user_id=uid, zoo_id=zoo_id, path=rel_path)
+                db.add(p)
+                db.commit()
+                db.refresh(p)
+            saved.append({"id": p.id, "url": "/uploads/" + p.path})
+        except Exception:
+            # 1枚の失敗で全体を止めない（残りは保存する）
+            errors.append({"name": name, "reason": "保存に失敗しました"})
+
+    return {"saved": len(saved), "photos": saved, "errors": errors}
+
 
 @app.delete("/api/zoos/{zoo_id}/photos/{photo_id}")
 def delete_photo(zoo_id: int, photo_id: int, request: Request):

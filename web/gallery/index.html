@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>マイ写真ギャラリー｜全国動物園スタンプラリー</title>
-  <link rel="stylesheet" href="/styles.css?v=20260318-1" />
+  <link rel="stylesheet" href="/styles.css?v=20260923-1" />
   <style>
     .gallery-wrap { max-width: 800px; margin: 24px auto; padding: 0 16px; }
     .gallery-back { margin-bottom: 16px; }
@@ -15,11 +15,91 @@
     .gallery-login-msg a { color: #2d6a4f; font-weight: bold; }
     .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-top: 8px; }
     .gallery-item { display: flex; flex-direction: column; align-items: center; }
-    .gallery-img  { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: #eee; }
+    .gallery-thumb { position: relative; width: 100%; }
+    .gallery-img  { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: #eee; display: block; cursor: zoom-in; }
+    /* 写真の削除ボタン（サムネイル右上） */
+    .gallery-del {
+      position: absolute; top: 6px; right: 6px; width: 30px; height: 30px;
+      padding: 0; line-height: 28px; text-align: center;
+      border: none; border-radius: 50%; cursor: pointer;
+      background: rgba(0, 0, 0, .55); color: #fff; font-size: 16px; font-family: inherit;
+    }
+    .gallery-del:hover { background: rgba(176, 0, 0, .85); }
+    .gallery-del:disabled { opacity: .5; cursor: default; }
     .gallery-label { font-size: 12px; color: #555; margin-top: 5px; text-align: center; line-height: 1.4; word-break: break-all; }
     .gallery-date  { font-size: 11px; color: #aaa; margin-top: 1px; }
     .gallery-empty { padding: 40px 0; text-align: center; color: #aaa; font-size: 15px; }
     .loading { padding: 40px 0; text-align: center; color: #888; }
+
+    /* まとめて追加パネル */
+    .bulk { background: #fff; border: 1px solid #d5e3d9; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; }
+    .bulk__title { font-size: 15px; font-weight: 700; color: #1b4332; margin: 0 0 4px; }
+    .bulk__hint { font-size: 12px; color: #6b8a78; margin: 0 0 12px; line-height: 1.6; }
+
+    /* 1行＝1つの動物園 */
+    .bulk__row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+                 padding: 10px; margin-bottom: 8px; border: 1px solid #dfeae3;
+                 border-radius: 10px; background: #fafdfb; }
+    .bulk__select { flex: 1 1 100%; min-width: 0; padding: 9px 10px; border: 1px solid #cdded4;
+                    border-radius: 8px; font-size: 14px; background: #fff; color: #1b4332; font-family: inherit; }
+    /* ネイティブのファイル入力は隠す。
+       選んだあとも「選択されていません」と出て紛らわしいため、自前のボタンに置き換える */
+    .bulk__file { display: none; }
+    .bulk__pick { flex: 1 1 auto; padding: 10px 14px; border: 1px dashed #9ec4ae;
+                  border-radius: 8px; background: #fff; color: #2d6a4f;
+                  font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .bulk__pick:hover { background: #f2f8f4; border-color: #2d6a4f; }
+    .bulk__pick:disabled { opacity: .5; cursor: default; }
+    .bulk__count { flex: 0 0 auto; font-size: 12px; color: #2a7d5a; font-weight: 700; min-width: 4.5em; }
+    .bulk__count:empty { min-width: 0; }
+    .bulk__remove { flex: 0 0 auto; width: 30px; height: 30px; padding: 0; line-height: 1;
+                    border: 1px solid #d5e3d9; border-radius: 8px; background: #fff;
+                    color: #98a8b0; font-size: 17px; cursor: pointer; font-family: inherit; }
+    .bulk__remove:hover { border-color: #e0a0a0; color: #b00; background: #fff6f6; }
+    .bulk__remove:disabled { opacity: .35; cursor: default; }
+
+    /* 選んだ写真のプレビュー（選ぶたびに積み増しされる） */
+    .bulk__filelist {
+      flex: 1 1 100%; list-style: none; margin: 8px 0 0; padding: 0;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px;
+    }
+    .bulk__filelist:empty { margin: 0; }
+    .bulk__filelist li { position: relative; }
+    .bulk__thumb {
+      width: 100%; aspect-ratio: 1; object-fit: cover; display: block;
+      border: 1px solid #d5e3d9; border-radius: 6px; background: #fff;
+    }
+    .bulk__filename {
+      display: block; margin-top: 2px; font-size: 10px; color: #6b8a78;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .bulk__filedel {
+      position: absolute; top: 3px; right: 3px; width: 22px; height: 22px;
+      padding: 0; line-height: 20px; text-align: center;
+      border: none; border-radius: 50%; background: rgba(0, 0, 0, .6);
+      color: #fff; font-size: 13px; cursor: pointer; font-family: inherit;
+    }
+    .bulk__filedel:hover { background: rgba(176, 0, 0, .85); }
+    .bulk__filedel:disabled { opacity: .35; cursor: default; }
+
+    .bulk__addrow { display: inline-block; padding: 8px 14px; margin: 2px 0 4px;
+                    border: 1px dashed #9ec4ae; border-radius: 8px; background: #fff;
+                    color: #2d6a4f; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .bulk__addrow:hover { background: #f2f8f4; border-color: #2d6a4f; }
+    .bulk__addrow:disabled { opacity: .5; cursor: default; }
+
+    .bulk__footer { display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+                    justify-content: space-between; margin-top: 12px;
+                    padding-top: 12px; border-top: 1px solid #eef6f0; }
+    .bulk__total { font-size: 13px; color: #456; }
+    .bulk__btn { padding: 10px 20px; border: none; border-radius: 8px; background: #2d6a4f; color: #fff;
+                 font-weight: 700; font-size: 14px; cursor: pointer; font-family: inherit; }
+    .bulk__btn:hover { background: #245840; }
+    .bulk__btn:disabled { opacity: .55; cursor: default; }
+    .bulk__status { font-size: 13px; margin-top: 10px; line-height: 1.7; min-height: 1em; }
+    .bulk__status.ok { color: #2a7d5a; }
+    .bulk__status.ng { color: #b00; }
+    .bulk__errors { font-size: 12px; color: #b00; margin: 4px 0 0; padding-left: 18px; }
   </style>
 </head>
 <body>
@@ -55,68 +135,504 @@
   <div class="gallery-wrap">
     <div class="gallery-title">📷 マイ写真ギャラリー</div>
     <div class="gallery-sub">投稿した写真がすべて表示されます</div>
+
+    <!-- 動物園ごとに写真をまとめて追加（複数の動物園を一度に） -->
+    <div class="bulk" id="bulkPanel" style="display:none;">
+      <p class="bulk__title">📷 写真をまとめて追加</p>
+      <p class="bulk__hint">
+        動物園を選んで写真を選びます。<strong>写真は選ぶたびに追加されていく</strong>ので、
+        同じ動物園なら何回に分けて選んでも構いません。<br>
+        別の動物園ぶんも一緒に追加したいときは「＋ 動物園を追加」で行を増やしてください。<br>
+        JPEG / PNG / WebP・1枚5MBまで。
+      </p>
+
+      <div id="bulkRows"></div>
+
+      <button id="bulkAddRow" class="bulk__addrow" type="button">＋ 動物園を追加</button>
+
+      <div class="bulk__footer">
+        <span id="bulkTotal" class="bulk__total"></span>
+        <button id="bulkUpload" class="bulk__btn" type="button">まとめて追加</button>
+      </div>
+
+      <div id="bulkStatus" class="bulk__status"></div>
+      <ul id="bulkErrors" class="bulk__errors"></ul>
+    </div>
+
+    <!-- 写真の削除確認 -->
+    <div id="delModal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true">
+      <div class="modal-box" style="max-width:340px;">
+        <p class="modal-title">写真を削除しますか？</p>
+        <p id="delModalText" style="font-size:14px;color:#456;margin:0 0 4px;"></p>
+        <p style="font-size:12px;color:#b00;margin:0;">削除すると元に戻せません。</p>
+        <div class="modal-actions">
+          <button id="delModalOk" class="modal-btn modal-btn--secondary">削除する</button>
+          <button id="delModalCancel" class="modal-btn modal-btn--cancel">やめる</button>
+        </div>
+      </div>
+    </div>
+
     <div id="content"><div class="loading">読み込み中...</div></div>
   </div>
 
   <script>
   (async () => {
+    const BULK_CHUNK = 20;   // サーバー側の1リクエスト上限に合わせる
+
+    const content    = document.getElementById("content");
+    const panel      = document.getElementById("bulkPanel");
+    const rowsEl     = document.getElementById("bulkRows");
+    const addRowBtn  = document.getElementById("bulkAddRow");
+    const totalEl    = document.getElementById("bulkTotal");
+    const uploadBtn  = document.getElementById("bulkUpload");
+    const statusEl   = document.getElementById("bulkStatus");
+    const errorsEl   = document.getElementById("bulkErrors");
+
     let loggedIn = false;
     try {
       const me = await fetch("/api/me", { credentials: "same-origin" }).then(r => r.json());
       loggedIn = !!(me && me.user_id);
     } catch (e) {}
 
-    const content = document.getElementById("content");
-
     if (!loggedIn) {
       content.innerHTML = `<div class="gallery-login-msg"><a href="/login">Googleでログイン</a>すると写真が表示されます</div>`;
       return;
     }
 
-    try {
-      const photos = await fetch("/api/user/photos", { credentials: "same-origin" }).then(r => r.json());
-      content.innerHTML = "";
+    // ---- 写真一覧の描画 ----
+    async function renderPhotos() {
+      try {
+        const photos = await fetch("/api/user/photos", { credentials: "same-origin" }).then(r => r.json());
+        content.innerHTML = "";
 
-      if (!photos || photos.length === 0) {
-        content.innerHTML = `<div class="gallery-empty">まだ写真がありません<br><a href="/" style="color:#2d6a4f;">動物園を訪問して写真を追加しよう</a></div>`;
-        return;
+        if (!photos || photos.length === 0) {
+          content.innerHTML = `<div class="gallery-empty">まだ写真がありません<br>上の「写真をまとめて追加」から追加できます</div>`;
+          return;
+        }
+
+        const grid = document.createElement("div");
+        grid.className = "gallery-grid";
+
+        // 全画面表示用（一覧に出ている順番のまま横スクロールで移動できる）
+        const slides = photos.map(p => ({ url: p.url, caption: p.zoo_name }));
+
+        photos.forEach((p, idx) => {
+          const item = document.createElement("div");
+          item.className = "gallery-item";
+
+          const thumb = document.createElement("div");
+          thumb.className = "gallery-thumb";
+
+          const img = document.createElement("img");
+          img.src = p.url;
+          img.loading = "lazy";
+          img.className = "gallery-img";
+          img.alt = p.zoo_name;
+          // 押したら全画面表示。横スクロールで他の写真へ移動できる
+          img.addEventListener("click", () => {
+            if (window.ZooLightbox) ZooLightbox.open(slides, idx);
+          });
+
+          const del = document.createElement("button");
+          del.type = "button";
+          del.className = "gallery-del";
+          del.textContent = "×";
+          del.title = "この写真を削除";
+          del.setAttribute("aria-label", `${p.zoo_name} の写真を削除`);
+          del.addEventListener("click", () => askDelete(p, item, del));
+
+          thumb.appendChild(img);
+          thumb.appendChild(del);
+
+          const label = document.createElement("div");
+          label.className = "gallery-label";
+          label.textContent = p.zoo_name;
+
+          const date = document.createElement("div");
+          date.className = "gallery-date";
+          date.textContent = p.visited_at ? p.visited_at : (p.created_at ? p.created_at.slice(0, 10) : "");
+
+          item.appendChild(thumb);
+          item.appendChild(label);
+          item.appendChild(date);
+          grid.appendChild(item);
+        });
+
+        const countEl = document.createElement("div");
+        countEl.id = "photoCount";
+        countEl.dataset.count = String(photos.length);
+        countEl.style.cssText = "font-size:13px;color:#666;margin-bottom:12px;";
+        countEl.textContent = `${photos.length} 枚`;
+        content.appendChild(countEl);
+        content.appendChild(grid);
+      } catch (e) {
+        content.innerHTML = `<div class="gallery-empty">写真の読み込みに失敗しました</div>`;
       }
-
-      const grid = document.createElement("div");
-      grid.className = "gallery-grid";
-
-      for (const p of photos) {
-        const item = document.createElement("div");
-        item.className = "gallery-item";
-
-        const img = document.createElement("img");
-        img.src = p.url;
-        img.loading = "lazy";
-        img.className = "gallery-img";
-        img.alt = p.zoo_name;
-
-        const label = document.createElement("div");
-        label.className = "gallery-label";
-        label.textContent = p.zoo_name;
-
-        const date = document.createElement("div");
-        date.className = "gallery-date";
-        date.textContent = p.visited_at ? p.visited_at : (p.created_at ? p.created_at.slice(0, 10) : "");
-
-        item.appendChild(img);
-        item.appendChild(label);
-        item.appendChild(date);
-        grid.appendChild(item);
-      }
-
-      const countEl = document.createElement("div");
-      countEl.style.cssText = "font-size:13px;color:#666;margin-bottom:12px;";
-      countEl.textContent = `${photos.length} 枚`;
-      content.appendChild(countEl);
-      content.appendChild(grid);
-    } catch (e) {
-      content.innerHTML = `<div class="gallery-empty">写真の読み込みに失敗しました</div>`;
     }
+
+    // 一括追加パネルの準備に失敗していてもトークンを取り直せるようにする
+    async function ensureCsrf() {
+      if (csrfToken) return csrfToken;
+      const j = await fetch("/api/csrf", { credentials: "same-origin" }).then(r => r.json());
+      csrfToken = (j && j.token) || "";
+      return csrfToken;
+    }
+
+    // ---- 写真の削除 ----
+    const delModal  = document.getElementById("delModal");
+    const delText   = document.getElementById("delModalText");
+    const delOkBtn  = document.getElementById("delModalOk");
+    let pendingDelete = null;   // { photo, item, btn }
+
+    function closeDelModal() {
+      delModal.style.display = "none";
+      pendingDelete = null;
+    }
+    document.getElementById("delModalCancel").addEventListener("click", closeDelModal);
+    delModal.addEventListener("click", (e) => { if (e.target === delModal) closeDelModal(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && delModal.style.display !== "none") closeDelModal();
+    });
+
+    function askDelete(photo, item, btn) {
+      pendingDelete = { photo, item, btn };
+      delText.textContent = `${photo.zoo_name} の写真`;
+      delModal.style.display = "";
+    }
+
+    delOkBtn.addEventListener("click", async () => {
+      if (!pendingDelete) return;
+      const { photo, item, btn } = pendingDelete;
+      closeDelModal();
+
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/zoos/${photo.zoo_id}/photos/${photo.id}`, {
+          method: "DELETE",
+          credentials: "same-origin",
+          headers: { "X-CSRF-Token": await ensureCsrf() },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        item.remove();
+        updatePhotoCount(-1);
+      } catch (e) {
+        btn.disabled = false;
+        alert("写真を削除できませんでした。時間をおいて試してください。");
+      }
+    });
+
+    // 「〇枚」の表示を増減させる（全件取り直さずに済ませる）
+    function updatePhotoCount(diff) {
+      const el = document.getElementById("photoCount");
+      if (!el) return;
+      const n = Math.max(0, (parseInt(el.dataset.count, 10) || 0) + diff);
+      el.dataset.count = String(n);
+      el.textContent = `${n} 枚`;
+      if (n === 0) renderPhotos();
+    }
+
+    // ---- まとめて追加パネルの準備 ----
+    let csrfToken = "";
+    let zoos = [];
+
+    // 動物園の選択肢（訪問済みを先頭にまとめて選びやすくする）
+    function fillSelect(sel) {
+      const optionFor = (z) => {
+        const o = document.createElement("option");
+        o.value = z.id;
+        o.textContent = `${z.name}（${z.prefecture || ""}）`;
+        return o;
+      };
+      const ph = document.createElement("option");
+      ph.value = "";
+      ph.textContent = "動物園を選んでください";
+      sel.appendChild(ph);
+
+      const groups = [
+        ["訪問済み", zoos.filter(z => z.visited)],
+        ["そのほか", zoos.filter(z => !z.visited)],
+      ];
+      for (const [label, list] of groups) {
+        if (!list.length) continue;
+        const g = document.createElement("optgroup");
+        g.label = label;
+        list.forEach(z => g.appendChild(optionFor(z)));
+        sel.appendChild(g);
+      }
+    }
+
+    // 1行 = 1つの動物園ぶんの入力欄
+    // 写真は選ぶたびに「積み増し」される。ファイル選択ダイアログは選び直すと
+    // 前回の選択が消えてしまうので、選んだファイルは行ごとに自分で持っておく。
+    function addRow() {
+      const row = document.createElement("div");
+      row.className = "bulk__row";
+      row.__files = [];   // この行で選ばれている写真
+
+      const sel = document.createElement("select");
+      sel.className = "bulk__select";
+      fillSelect(sel);
+
+      // ネイティブのファイル入力は隠して、自前のボタンから開く。
+      // （選んだあとも「選択されていません」と表示されて紛らわしいため）
+      const file = document.createElement("input");
+      file.type = "file";
+      file.className = "bulk__file";
+      file.accept = "image/jpeg,image/png,image/webp";
+      file.multiple = true;
+
+      const pick = document.createElement("button");
+      pick.type = "button";
+      pick.className = "bulk__pick";
+      pick.textContent = "＋ 写真を選ぶ";
+      pick.addEventListener("click", () => file.click());
+
+      const count = document.createElement("span");
+      count.className = "bulk__count";
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "bulk__remove";
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", "この行を削除");
+
+      // 選んだ写真のプレビュー（1枚ずつ取り消せる）
+      const list = document.createElement("ul");
+      list.className = "bulk__filelist";
+
+      const key = (f) => `${f.name}::${f.size}::${f.lastModified}`;
+
+      function renderList() {
+        list.innerHTML = "";
+        row.__files.forEach((f, i) => {
+          const li = document.createElement("li");
+
+          const img = document.createElement("img");
+          img.className = "bulk__thumb";
+          img.src = f.__previewUrl;
+          img.alt = f.name;
+          img.title = f.name;
+
+          const nameEl = document.createElement("span");
+          nameEl.className = "bulk__filename";
+          nameEl.textContent = f.name;
+
+          const del = document.createElement("button");
+          del.type = "button";
+          del.className = "bulk__filedel";
+          del.textContent = "×";
+          del.setAttribute("aria-label", `${f.name} を取り消す`);
+          del.addEventListener("click", () => {
+            URL.revokeObjectURL(f.__previewUrl);
+            row.__files.splice(i, 1);
+            renderList();
+            updateTotal();
+          });
+
+          li.append(img, del, nameEl);
+          list.appendChild(li);
+        });
+
+        count.textContent = row.__files.length ? `${row.__files.length}枚 選択中` : "";
+        pick.textContent = row.__files.length ? "＋ さらに写真を選ぶ" : "＋ 写真を選ぶ";
+      }
+      row.__renderList = renderList;
+
+      // 送信後などにまとめて空にする（プレビュー用のURLも解放する）
+      row.__clearFiles = () => {
+        row.__files.forEach(f => URL.revokeObjectURL(f.__previewUrl));
+        row.__files = [];
+        renderList();
+      };
+
+      file.addEventListener("change", () => {
+        const picked = Array.from(file.files || []);
+        const seen = new Set(row.__files.map(key));
+        // 同じ写真を二重に入れない
+        picked.forEach(f => {
+          if (seen.has(key(f))) return;
+          f.__previewUrl = URL.createObjectURL(f);
+          row.__files.push(f);
+          seen.add(key(f));
+        });
+        // 値を空に戻す。こうしないと同じ写真をもう一度選んでも change が起きない
+        file.value = "";
+        renderList();
+        updateTotal();
+      });
+      sel.addEventListener("change", updateTotal);
+      remove.addEventListener("click", () => {
+        row.__clearFiles();
+        row.remove();
+        if (!rowsEl.children.length) addRow();
+        updateTotal();
+      });
+
+      row.append(sel, file, pick, count, remove, list);
+      rowsEl.appendChild(row);
+      updateTotal();
+      return row;
+    }
+
+    // 入力済みの行だけを取り出す
+    function collectRows() {
+      return Array.from(rowsEl.children).map(row => ({
+        row,
+        sel: row.querySelector(".bulk__select"),
+        file: row.querySelector(".bulk__file"),
+        count: row.querySelector(".bulk__count"),
+        files: row.__files || [],
+      }));
+    }
+
+    function updateTotal() {
+      const rows = collectRows();
+      const ready = rows.filter(r => r.sel.value && r.files.length);
+      const photos = ready.reduce((n, r) => n + r.files.length, 0);
+
+      totalEl.textContent = photos
+        ? `${ready.length}園 / 合計 ${photos}枚`
+        : "動物園と写真を選んでください";
+      uploadBtn.disabled = photos === 0;
+
+      // 行が1つだけのときは削除ボタンを無効化（必ず1行は残す）
+      const only = rows.length === 1;
+      rows.forEach(r => { r.row.querySelector(".bulk__remove").disabled = only; });
+    }
+
+    async function setupBulk() {
+      try {
+        const [csrf, list] = await Promise.all([
+          fetch("/api/csrf", { credentials: "same-origin" }).then(r => r.json()),
+          fetch("/api/zoos", { credentials: "same-origin" }).then(r => r.json()),
+        ]);
+        csrfToken = (csrf && csrf.token) || "";
+        zoos = list || [];
+      } catch (e) {
+        return;   // パネルは出さない（一覧表示だけは動く）
+      }
+
+      addRow();
+      panel.style.display = "";
+    }
+
+    addRowBtn.addEventListener("click", () => addRow());
+
+    function setStatus(msg, cls) {
+      statusEl.textContent = msg;
+      statusEl.className = "bulk__status" + (cls ? " " + cls : "");
+    }
+
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    // 1回ぶんを送る。送りすぎ(429)のときは少し待ってやり直す
+    async function postChunk(zooId, chunk, onWait) {
+      const WAITS = [5000, 12000, 20000];   // 待ち時間（レート制限は1分単位）
+      for (let attempt = 0; ; attempt++) {
+        const fd = new FormData();
+        chunk.forEach(f => fd.append("files", f, f.name));
+
+        const res = await fetch(`/api/zoos/${zooId}/photos/bulk`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "X-CSRF-Token": csrfToken },
+          body: fd,
+        });
+
+        if (res.status !== 429) {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        }
+        if (attempt >= WAITS.length) {
+          throw new Error("短時間に送りすぎです。少し時間をおいてからお試しください");
+        }
+        onWait(Math.round(WAITS[attempt] / 1000));
+        await sleep(WAITS[attempt]);
+      }
+    }
+
+    // 1つの動物園ぶんを送る（サーバーの1回あたりの上限に合わせて分割）
+    async function uploadOne(zooId, files, onProgress, onWait) {
+      let saved = 0;
+      const errors = [];
+      for (let i = 0; i < files.length; i += BULK_CHUNK) {
+        const chunk = files.slice(i, i + BULK_CHUNK);
+        onProgress(Math.min(i + chunk.length, files.length), files.length);
+
+        const json = await postChunk(zooId, chunk, onWait);
+        saved += json.saved || 0;
+        (json.errors || []).forEach(e => errors.push(e));
+      }
+      return { saved, errors };
+    }
+
+    uploadBtn.addEventListener("click", async () => {
+      errorsEl.innerHTML = "";
+
+      const targets = collectRows()
+        .filter(r => r.sel.value && r.files.length)
+        .map(r => ({
+          id: r.sel.value,
+          name: r.sel.options[r.sel.selectedIndex].textContent,
+          files: r.files.slice(),
+          ui: r,
+        }));
+
+      if (!targets.length) { setStatus("動物園と写真を選んでください", "ng"); return; }
+
+      const controls = [uploadBtn, addRowBtn,
+                        ...Array.from(rowsEl.querySelectorAll("select, input, button"))];
+      controls.forEach(c => { c.disabled = true; });
+
+      let saved = 0;
+      let okCount = 0;
+      const allErrors = [];
+      const done = [];
+
+      // 1園ずつ独立して送る。1園が失敗しても残りの園は必ず試す
+      for (let i = 0; i < targets.length; i++) {
+        const t = targets[i];
+        const pos = `(${i + 1}/${targets.length}園)`;
+        try {
+          const { saved: n, errors } = await uploadOne(
+            t.id,
+            t.files,
+            (cur, all) => setStatus(`アップロード中... ${pos} ${t.name} ${cur}/${all}枚`),
+            (sec) => setStatus(`送信が混み合っています。${sec}秒待ってから続けます... ${pos} ${t.name}`),
+          );
+          saved += n;
+          errors.forEach(e => allErrors.push({ zoo: t.name, name: e.name, reason: e.reason }));
+          if (n > 0) { okCount++; done.push(t); }
+        } catch (e) {
+          allErrors.push({ zoo: t.name, name: `${t.files.length}枚`, reason: e.message || "送信に失敗しました" });
+        }
+      }
+
+      if (saved > 0) {
+        const failed = targets.length - okCount;
+        setStatus(
+          `${okCount}園に合計 ${saved} 枚を追加しました` + (failed ? `（${failed}園は追加できませんでした）` : ""),
+          failed ? "ng" : "ok",
+        );
+        // 送信できた行は写真だけ空にする（動物園の選択はそのまま残すので、
+        // 同じ動物園に続けて追加するときに選び直さなくていい）
+        done.forEach(t => t.ui.row.__clearFiles());
+        await renderPhotos();
+      } else {
+        setStatus("追加できた写真がありませんでした", "ng");
+      }
+
+      allErrors.forEach(e => {
+        const li = document.createElement("li");
+        li.textContent = `${e.zoo}／${e.name}：${e.reason}`;
+        errorsEl.appendChild(li);
+      });
+
+      controls.forEach(c => { c.disabled = false; });
+      updateTotal();
+    });
+
+    await Promise.all([renderPhotos(), setupBulk()]);
   })();
   </script>
 
@@ -124,10 +640,12 @@
     <div class="footer-inner">
       <a href="/contact/">お問い合わせ</a>
       <a href="/privacy/">プライバシーポリシー</a>
+      <a href="https://aquarium-log.onrender.com/" target="_blank" rel="noopener noreferrer">🐟 全国水族館スタンプラリー</a>
       <span>© 2025 全国動物園スタンプラリー</span>
     </div>
   </footer>
 
-  <script src="/nav.js?v=20260318-1"></script>
+  <script src="/lightbox.js?v=20260923-1"></script>
+  <script src="/nav.js?v=20260923-1"></script>
 </body>
 </html>

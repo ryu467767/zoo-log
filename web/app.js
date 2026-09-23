@@ -614,7 +614,9 @@ if (!state.loggedIn) note.placeholder = "ログインするとメモできます
 
       try {
         const list = await apiGet(`/api/zoos/${it.id}/photos`);
-        for (const p of list) {
+        // 全画面表示用（この園の写真を並び順のまま横スクロールで見られる）
+        const slides = list.map(x => ({ url: x.url, caption: it.name }));
+        list.forEach((p, i) => {
           const item = document.createElement("div");
           item.className = "thumb-item";
 
@@ -622,6 +624,11 @@ if (!state.loggedIn) note.placeholder = "ログインするとメモできます
           img.className = "thumb";
           img.src = p.url;
           img.loading = "lazy";
+          img.style.cursor = "zoom-in";
+          // 押したら全画面表示。横スワイプで次の写真へ
+          img.addEventListener("click", () => {
+            if (window.ZooLightbox) ZooLightbox.open(slides, i);
+          });
           item.appendChild(img);
 
           const del = document.createElement("button");
@@ -649,7 +656,7 @@ if (!state.loggedIn) note.placeholder = "ログインするとメモできます
           item.appendChild(del);
 
           thumbs.appendChild(item);
-        }
+        });
       } catch (e) {
         console.warn("photos fetch failed:", e);
       }
