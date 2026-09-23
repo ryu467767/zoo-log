@@ -2102,3 +2102,171 @@ header {
   line-height: 18px;
   text-align: center;
 }
+
+/* ===== 地図タブ（リーフレット / 都道府県別の達成状況）=====
+   水族館側と同じ構成。配色だけ動物園のテーマ（緑）に合わせている。
+   既存の .mapwrap / #map は変更せず、ここから下は新規クラスのみ。 */
+.map-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.map-tab {
+  flex: 1;
+  padding: 9px 8px;
+  border: 1px solid #d5e3d9;
+  background: #f2f8f4;
+  color: #4a7060;
+  border-radius: 10px 10px 0 0;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.map-tab.is-active {
+  background: #2d6a4f;
+  color: #fff;
+  border-color: #2d6a4f;
+}
+
+.map-pane[hidden] { display: none !important; }
+
+/* 都道府県別パネル */
+.japan-map-stage { position: relative; }
+
+.japan-map-viewport {
+  max-width: 440px;
+  height: 56vh;          /* 高さ固定：拡大してもブロックは伸びず、中だけズーム＆スクロール */
+  max-height: 460px;
+  margin: 0 auto;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #dfeae3;
+  border-radius: 10px;
+  background: #f8fbf9;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  scrollbar-width: none;        /* Firefox：スクロールバー非表示 */
+  -ms-overflow-style: none;     /* 旧Edge/IE */
+}
+
+.japan-map-viewport::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+.japan-map-viewport.grabbing { cursor: grabbing; }
+
+.japan-map-viewport svg { -webkit-user-drag: none; }
+
+.japan-map {
+  width: 100%;          /* 拡大時は JS で width を変更（ビューポートをスクロールして移動）*/
+}
+
+.japan-map svg { width: 100%; height: auto; display: block; }
+
+.japan-map g.prefecture { transition: fill .15s ease; }
+
+.japan-map g.prefecture:hover { fill-opacity: .82; }
+
+.japan-map-err { text-align: center; color: #999; padding: 40px 8px; font-size: 13px; }
+
+/* 拡大／縮小ボタン */
+.japan-zoom {
+  position: absolute;
+  top: 8px; right: 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.japan-zoom button {
+  width: 36px; height: 36px;
+  border-radius: 9px;
+  border: 1px solid #d5e3d9;
+  background: rgba(255,255,255,.92);
+  box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  font-size: 22px; line-height: 1;
+  font-weight: 700;
+  color: #2d6a4f;
+  cursor: pointer;
+}
+
+.japan-zoom button:active { background: #e6f0ea; }
+
+.japan-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin: 10px 0 12px;
+  font-size: 12px;
+  color: #555;
+}
+
+.japan-legend i.lg {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border-radius: 3px;
+  margin-right: 4px;
+  vertical-align: -1px;
+  border: 1px solid rgba(0,0,0,.12);
+}
+
+/* 凡例の色は状態を表すものなので、水族館側と同じ配色のままにする */
+.lg-done { background: #4db6ac; }
+.lg-part { background: #ffd54f; }
+.lg-none { background: #cfd8dc; }
+.lg-empty { background: #eceff1; }
+
+.pref-detail {
+  background: #f7fbf9;
+  border: 1px solid #d5e3d9;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  color: #6b8a78;
+  min-height: 44px;
+}
+
+.pref-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pref-detail-name { font-weight: 700; color: #1b4332; font-size: 15px; }
+
+.pref-detail-count { font-size: 13px; color: #2d6a4f; white-space: nowrap; }
+
+.pref-detail-sub { font-size: 12.5px; color: #9aada1; }
+
+.pref-zoo-list { display: flex; flex-direction: column; gap: 5px; }
+
+.pref-zoo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #dfeae3;
+  border-radius: 9px;
+  padding: 9px 11px;
+  font-size: 13px;
+  color: #5f7068;
+  cursor: pointer;
+}
+
+.pref-zoo:active { background: #eef7f1; }
+
+.pref-zoo.on { color: #2a7d5a; border-color: #cce8da; background: #f3fbf6; }
+
+.pref-zoo-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pref-zoo-arrow { color: #9fbcac; font-size: 16px; flex-shrink: 0; }
+
+.japan-map-attr { text-align: center; font-size: 10px; color: #b8cabf; margin-top: 8px; }

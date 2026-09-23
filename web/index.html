@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>全国動物園スタンプラリー｜日本全国の動物園を巡ろう</title>
-  <link rel="stylesheet" href="styles.css?v=20260318-1">
-  <link rel="stylesheet" href="styles.layout.css?v=20260318-1">
+  <link rel="stylesheet" href="styles.css?v=20260923-1">
+  <link rel="stylesheet" href="styles.layout.css?v=20260923-1">
   <link
   rel="stylesheet"
   href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -165,7 +165,30 @@
   </section>
 
   <section class="mapwrap">
-    <div id="map"></div>
+    <div class="map-tabs" role="tablist">
+      <button type="button" class="map-tab is-active" data-maptab="leaflet">地図</button>
+      <button type="button" class="map-tab" data-maptab="pref">都道府県</button>
+    </div>
+    <div id="map" class="map-pane"></div>
+    <div id="prefPane" class="map-pane" hidden>
+      <div class="japan-map-stage">
+        <div class="japan-zoom">
+          <button type="button" id="japanZoomIn" aria-label="拡大">＋</button>
+          <button type="button" id="japanZoomOut" aria-label="縮小">−</button>
+        </div>
+        <div class="japan-map-viewport">
+          <div id="japanMap" class="japan-map" aria-label="都道府県別の達成状況"></div>
+        </div>
+      </div>
+      <div class="japan-legend">
+        <span><i class="lg lg-done"></i>制覇</span>
+        <span><i class="lg lg-part"></i>一部訪問</span>
+        <span><i class="lg lg-none"></i>未訪問</span>
+        <span><i class="lg lg-empty"></i>施設なし</span>
+      </div>
+      <div id="prefDetail" class="pref-detail">都道府県をタップすると詳細が見られます</div>
+      <div class="japan-map-attr">地図: Geolonia (MIT)</div>
+    </div>
   </section>
 
   <div class="sortBar">
@@ -305,6 +328,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=20260318-1"></script>
+  <script src="app.js?v=20260923-1"></script>
 </body>
 </html>

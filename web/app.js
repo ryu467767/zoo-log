@@ -1218,6 +1218,7 @@ async function load() {
   state.items = items;
   setPrefOptions(items);
   initMap();
+  colorJapanMap();   // 都道府県タブが読み込み済みなら塗り直す
 
   const visited = Number(stats.visited || 0);
   const total = Math.max(1, Number(stats.total || 0));
@@ -1319,6 +1320,8 @@ function updateLoginCta(me) {
 
 
 function wireUI() {
+
+  wireMapTabs();
 
   const qEl = $("q");
 if (qEl) {
@@ -1651,6 +1654,234 @@ function initSuggestions() {
 })();
 
 
+// ===== 地図タブ（リーフレット / 都道府県別の達成状況）=====
+// 水族館側と同じ構成。japan.svg の g.prefecture を data-code(1〜47) で塗り分ける。
+let japanMapLoaded = false;
+let japanZoom = 1;            // 都道府県地図の拡大率
+let _japanCurrentPref = null; // いま詳細表示している都道府県
+
+function wireMapTabs() {
+  const tabs = document.querySelectorAll('.map-tab');
+  const leafletPane = document.getElementById('map');
+  const prefPane = document.getElementById('prefPane');
+  if (!tabs.length || !leafletPane || !prefPane) return;
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.toggle('is-active', t === tab));
+      if (tab.dataset.maptab === 'pref') {
+        leafletPane.hidden = true;
+        prefPane.hidden = false;
+        showJapanMap();
+      } else {
+        prefPane.hidden = true;
+        leafletPane.hidden = false;
+        if (map) setTimeout(() => {
+          map.invalidateSize(); // 非表示中にサイズ0だった対策
+          if (state.mapNeedsFit && state.mapPts && state.mapPts.length) {
+            map.fitBounds(state.mapPts, { padding: [24, 24] });
+            state.mapNeedsFit = false;
+          }
+        }, 0);
+      }
+    });
+  });
+
+  // 拡大／縮小ボタン
+  const zin = document.getElementById('japanZoomIn');
+  const zout = document.getElementById('japanZoomOut');
+  if (zin) zin.addEventListener('click', () => setJapanZoom(japanZoom + 0.5));
+  if (zout) zout.addEventListener('click', () => setJapanZoom(japanZoom - 0.5));
+
+  enableMapDrag();
+
+  setTimeout(() => {
+    const activeTab = document.querySelector('.map-tab.is-active');
+    if (activeTab && activeTab.dataset.maptab === 'pref') {
+      showJapanMap();
+    }
+  }, 0);
+}
+
+// マウスドラッグで地図をパン（スマホは overflow のネイティブ指スクロールに任せる）
+function enableMapDrag() {
+  const vp = document.querySelector('.japan-map-viewport');
+  if (!vp || vp.dataset.dragWired) return;
+  vp.dataset.dragWired = '1';
+
+  // マウスホイールでカーソル位置を中心に拡大／縮小
+  vp.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    setJapanZoom(japanZoom + (e.deltaY < 0 ? 0.3 : -0.3), e.clientX, e.clientY);
+  }, { passive: false });
+
+  let down = false, moved = false, sx = 0, sy = 0, sl = 0, st = 0;
+
+  function onMove(e) {
+    if (!down) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+    vp.scrollLeft = sl - dx;
+    vp.scrollTop  = st - dy;
+    e.preventDefault();
+  }
+  function onUp() {
+    if (!down) return;
+    down = false;
+    vp.classList.remove('grabbing');
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+  }
+
+  // マウス／ペンのドラッグ開始（タッチはネイティブスクロールに任せる）
+  vp.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') return;
+    down = true; moved = false;
+    sx = e.clientX; sy = e.clientY;
+    sl = vp.scrollLeft; st = vp.scrollTop;
+    vp.classList.add('grabbing');
+    window.addEventListener('pointermove', onMove, { passive: false });
+    window.addEventListener('pointerup', onUp);
+  });
+  // 旧ブラウザ用フォールバック
+  vp.addEventListener('mousedown', (e) => {
+    if (down) return;
+    down = true; moved = false;
+    sx = e.clientX; sy = e.clientY;
+    sl = vp.scrollLeft; st = vp.scrollTop;
+    vp.classList.add('grabbing');
+    window.addEventListener('mousemove', onMove, { passive: false });
+    window.addEventListener('mouseup', function mu() {
+      onUp(); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', mu);
+    });
+  });
+
+  // ドラッグ後のクリックで都道府県詳細が開かないように抑制
+  vp.addEventListener('click', (e) => {
+    if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; }
+  }, true);
+}
+
+function applyJapanZoom() {
+  const host = document.getElementById('japanMap');
+  if (host) host.style.width = (japanZoom * 100) + '%';
+}
+
+// 拡大率を変更（clientX/Y を渡すとその位置を中心に、無ければ中央基準）
+function setJapanZoom(newZoom, clientX, clientY) {
+  newZoom = Math.max(1, Math.min(4, Math.round(newZoom * 100) / 100));
+  if (newZoom === japanZoom) return;
+  const vp = document.querySelector('.japan-map-viewport');
+  if (!vp) { japanZoom = newZoom; applyJapanZoom(); return; }
+  const rect = vp.getBoundingClientRect();
+  const ax = (clientX == null ? rect.width / 2 : clientX - rect.left);
+  const ay = (clientY == null ? rect.height / 2 : clientY - rect.top);
+  const contentX = vp.scrollLeft + ax;
+  const contentY = vp.scrollTop + ay;
+  const ratio = newZoom / japanZoom;
+  japanZoom = newZoom;
+  applyJapanZoom();
+  vp.scrollLeft = contentX * ratio - ax;
+  vp.scrollTop  = contentY * ratio - ay;
+}
+
+// 都道府県ごとの「訪問済 / 総数」（閉園は除外）
+function prefStats(pref) {
+  const list = (state.items || []).filter(x => x.prefecture === pref && !x.is_closed);
+  return { total: list.length, visited: list.filter(x => x.visited).length, list };
+}
+
+async function showJapanMap() {
+  const host = document.getElementById('japanMap');
+  if (!host) return;
+
+  if (!japanMapLoaded) {
+    try {
+      const res = await fetch('japan.svg');
+      host.innerHTML = await res.text();
+      japanMapLoaded = true;
+      host.querySelectorAll('g.prefecture').forEach(g => {
+        g.style.cursor = 'pointer';
+        g.addEventListener('click', () => {
+          const code = parseInt(g.getAttribute('data-code'), 10);
+          showPrefDetail(PREF_ORDER[code - 1]);
+        });
+      });
+    } catch (e) {
+      host.innerHTML = '<div class="japan-map-err">地図の読み込みに失敗しました</div>';
+      return;
+    }
+  }
+  applyJapanZoom();
+  colorJapanMap();
+}
+
+function colorJapanMap() {
+  const host = document.getElementById('japanMap');
+  if (!host || !japanMapLoaded) return;
+  host.querySelectorAll('g.prefecture').forEach(g => {
+    const code = parseInt(g.getAttribute('data-code'), 10);
+    const { total, visited } = prefStats(PREF_ORDER[code - 1]);
+    let color;
+    if (total === 0) color = '#eceff1';            // 施設なし
+    else if (visited === 0) color = '#cfd8dc';     // 未訪問
+    else if (visited < total) color = '#ffd54f';   // 一部訪問
+    else color = '#4db6ac';                        // 制覇
+    g.setAttribute('fill', color);
+  });
+}
+
+function showPrefDetail(pref) {
+  const el = document.getElementById('prefDetail');
+  if (!el) return;
+  _japanCurrentPref = pref;
+  const { total, visited, list } = prefStats(pref);
+
+  el.innerHTML = '';
+  const head = document.createElement('div');
+  head.className = 'pref-detail-head';
+  const name = document.createElement('span');
+  name.className = 'pref-detail-name';
+  name.textContent = pref;
+  head.appendChild(name);
+  if (total > 0) {
+    const cnt = document.createElement('span');
+    cnt.className = 'pref-detail-count';
+    cnt.textContent = `${visited}/${total}　` + (visited === total ? '🏆 制覇！' : (visited === 0 ? '未訪問' : '一部訪問'));
+    head.appendChild(cnt);
+  }
+  el.appendChild(head);
+
+  if (total === 0) {
+    const sub = document.createElement('div');
+    sub.className = 'pref-detail-sub';
+    sub.textContent = '登録されている動物園はありません';
+    el.appendChild(sub);
+    return;
+  }
+
+  const listEl = document.createElement('div');
+  listEl.className = 'pref-zoo-list';
+  for (const it of list) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'pref-zoo' + (it.visited ? ' on' : '');
+    // 園名はユーザー入力ではないが、textContent で組み立てて確実にエスケープする
+    const nameEl = document.createElement('span');
+    nameEl.className = 'pref-zoo-name';
+    nameEl.textContent = (it.visited ? '✅ ' : '⬜ ') + it.name;
+    const arrow = document.createElement('span');
+    arrow.className = 'pref-zoo-arrow';
+    arrow.textContent = '›';
+    row.appendChild(nameEl);
+    row.appendChild(arrow);
+    row.addEventListener('click', () => openMapSheet(it));  // 各動物園のハーフモーダルを開く
+    listEl.appendChild(row);
+  }
+  el.appendChild(listEl);
+}
+
+
 function initMap() {
   if (map) return;
 
@@ -1720,8 +1951,17 @@ function updateMap(items, opts = { fit: true }) {
     marker.on('click', () => openMapSheet(it));
   }
 
+  state.mapPts = pts;
   if (opts.fit && pts.length) {
-    map.fitBounds(pts, { padding: [24, 24] });
+    const leafletPane = document.getElementById('map');
+    if (leafletPane && leafletPane.hidden) {
+      // 非表示中（都道府県タブ表示時）は0サイズでfitBoundsすると変な位置になるため、
+      // 地図タブが表示されたタイミングで改めてfitBoundsする
+      state.mapNeedsFit = true;
+    } else {
+      map.fitBounds(pts, { padding: [24, 24] });
+      state.mapNeedsFit = false;
+    }
   }
 }
 

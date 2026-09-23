@@ -729,7 +729,7 @@ ZOO_FOOTER = """
       <span>© 2025 全国動物園スタンプラリー</span>
     </div>
   </footer>
-  <script src="/nav.js?v=20260318-1"></script>
+  <script src="/nav.js?v=20260923-1"></script>
 """
 
 
@@ -901,7 +901,7 @@ def zoo_page(zoo_id: int):
   <meta name="theme-color" content="#2d6a4f">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   {ld}
-  <link rel="stylesheet" href="/styles.css?v=20260318-1">
+  <link rel="stylesheet" href="/styles.css?v=20260923-1">
   <style>
     /* ヘッダー常時固定（他ページと揃える） */
     header {{
