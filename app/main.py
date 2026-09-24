@@ -264,17 +264,23 @@ async def geocode(query: str):
 @app.on_event("startup")
 def on_startup():
     init_db()
-    # 初回だけ自動インポートしたい場合：CSV_PATH をRenderの環境変数にセットしておく
+    # CSV_PATH を設定しておくと、起動のたびにCSVの内容を取り込む。
+    #
+    # 以前は「DBが空のときだけ」取り込む作りだったが、それだと本番の
+    # 既存DBには園の追加も緯度経度の修正も一切反映されなかった。
+    #
+    # import_csv は upsert で、
+    #   - 既存の行は (name, location_raw, url) が一致するものを更新する
+    #   - CSVが空欄の項目で既存の値を上書きしない
+    #   - CSVに無い園を消さない
+    # ため、毎回走っても既存データを壊さない。
     csv_path = os.getenv("CSV_PATH", "")
     if csv_path:
-        with session() as db:
-            count = db.exec(select(Zoo)).first()
-        if not count:
-            try:
-                import_csv(csv_path)
-            except Exception:
-                # 失敗してもサーバは起動させる（ログはRender側で見える）
-                pass
+        try:
+            import_csv(csv_path)
+        except Exception:
+            # 失敗してもサーバは起動させる（ログはRender側で見える）
+            pass
 
 @app.get("/debug/build")
 def debug_build():
@@ -720,9 +726,10 @@ ZOO_HEADER = """
         <div id="bellPopover" class="bell-popover" hidden>
           <div class="bell-popover__title"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h13a2 2 0 0 1 2 2V17a1.5 1.5 0 0 1-1.5 1.5H6A2 2 0 0 1 4 16.5v-11z"/><path d="M17 18.5A1.5 1.5 0 0 0 18.5 17V9h2v8a1.5 1.5 0 0 1-1.5 1.5"/><line x1="7" y1="9" x2="14" y2="9"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg>更新情報</div>
           <ul class="bell-popover__list">
+            <li><span class="bell-popover__date">2026/09/25</span>動物園を12園追加し、全47都道府県をカバーしました（合計103園）。</li>
             <li><span class="bell-popover__date">2026/09/23</span>動物園ごとの詳細ページを追加しました。紹介・地図・会える動物をまとめて見られます。</li>
             <li><span class="bell-popover__date">2026/09/23</span>都道府県別マップを追加しました。日本地図で制覇状況が一目で分かります。</li>
-            <li><span class="bell-popover__date">2026/09/23</span>写真をまとめて追加できるようになりました。押すと全画面で見られます。</li>
+            
           </ul>
           <a href="/updates/" class="bell-popover__more">すべての更新情報を見る →</a>
         </div>
