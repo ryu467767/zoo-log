@@ -241,27 +241,16 @@ function renderCard(it) {
   meta.textContent = `${it.prefecture}${it.city ? " / " + it.city : ""} ${it.location_raw ? " / " + it.location_raw : ""}`;
   card.appendChild(meta);
 
-  // 動物アイコン行
-  const ANIMAL_ICONS = [
-    { key: "has_elephant",   icon: "🐘", label: "ゾウ" },
-    { key: "has_giraffe",    icon: "🦒", label: "キリン" },
-    { key: "has_lion",       icon: "🦁", label: "ライオン" },
-    { key: "has_tiger",      icon: "🐯", label: "トラ" },
-    { key: "has_panda",      icon: "🐼", label: "パンダ" },
-    { key: "has_gorilla",    icon: "🦍", label: "ゴリラ" },
-    { key: "has_hippo",      icon: "🦛", label: "カバ" },
-    { key: "has_koala",      icon: "🐨", label: "コアラ" },
-    { key: "has_polar_bear", icon: "🐻‍❄️", label: "ホッキョクグマ" },
-    { key: "has_red_panda",  icon: "🦊", label: "レッサーパンダ" },
-  ];
-  const animalIcons = ANIMAL_ICONS.filter(a => it[a.key]);
+  // 動物アイコン行（web/creature-icons.js の10種類）
+  const animalIcons = (window.CREATURES || []).filter(a => it[a.key]);
   if (animalIcons.length > 0) {
     const animalRow = document.createElement("div");
     animalRow.className = "card-animals";
     animalIcons.forEach(a => {
       const span = document.createElement("span");
       span.className = "card-animal-tag";
-      span.textContent = a.icon + "\u00a0" + a.label;
+      span.innerHTML = window.creatureSvg(a.key);
+      span.appendChild(document.createTextNode(a.name));
       animalRow.appendChild(span);
     });
     card.appendChild(animalRow);
@@ -1533,6 +1522,18 @@ function countWithPendingAnimals(pendingSet) {
 function openAnimalModal() {
   const modal = document.getElementById('animalModal');
   if (!modal) return;
+
+  // 選択肢は web/creature-icons.js の10種類から作る（初回だけ）
+  const grid = modal.querySelector('.filter-animal-grid');
+  if (grid && !grid.children.length) {
+    (window.CREATURES || []).forEach(c => {
+      const label = document.createElement('label');
+      label.className = 'filter-check-label';
+      label.innerHTML = `<input type="checkbox" name="animalModalFilter" value="${c.key}">` + window.creatureSvg(c.key);
+      label.appendChild(document.createTextNode(c.name));
+      grid.appendChild(label);
+    });
+  }
 
   // 現在のselectedAnimalsをモーダルに反映
   modal.querySelectorAll('input[name="animalModalFilter"]').forEach(c => {

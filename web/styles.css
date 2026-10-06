@@ -2483,3 +2483,19 @@ body.lb-open { overflow: hidden; }
   height: 18px;
   display: block;
 }
+
+/* ===== 動物アイコン（web/creature-icons.js）===== */
+/* ハンバーガーメニューのアイコンと同じ線の太さ・角の丸め */
+.creature-icon {
+  width: 1.15em;
+  height: 1.15em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+  vertical-align: -0.22em;
+}
+.card-animal-tag { gap: 3px; }
+.filter-check-label .creature-icon { width: 20px; height: 20px; color: #2d6a4f; }

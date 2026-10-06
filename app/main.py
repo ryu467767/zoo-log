@@ -692,6 +692,27 @@ _ZOO_ANIMALS = [
     ("has_polar_bear", "🐻‍❄️", "ホッキョクグマ"),
 ]
 
+# 動物アイコン（線画）。フロントと同じ web/creature-icons.js の JSON 部分を読む。
+# 読めなかったときは上の絵文字で表示する（詳細ページ自体は必ず出す）
+def _load_creature_svgs() -> dict:
+    try:
+        src = (WEB_DIR / "creature-icons.js").read_text(encoding="utf-8")
+        body = src.split("/*CREATURES-JSON*/")[1].split("/*END*/")[0]
+        return {c["key"]: c["svg"] for c in json.loads(body)}
+    except Exception:
+        traceback.print_exc()
+        return {}
+
+_CREATURE_SVGS = _load_creature_svgs()
+
+
+def _creature_icon_html(key: str, emoji: str) -> str:
+    svg = _CREATURE_SVGS.get(key)
+    if not svg:
+        return emoji + " "
+    return f'<svg class="creature-icon" viewBox="0 0 24 24" aria-hidden="true">{svg}</svg>'
+
+
 # 飼育している園が限られる動物（紹介文で見どころとして触れる）
 _ZOO_RARE_ANIMALS = {"has_panda", "has_koala", "has_gorilla", "has_polar_bear"}
 
@@ -726,9 +747,9 @@ ZOO_HEADER = """
         <div id="bellPopover" class="bell-popover" hidden>
           <div class="bell-popover__title"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h13a2 2 0 0 1 2 2V17a1.5 1.5 0 0 1-1.5 1.5H6A2 2 0 0 1 4 16.5v-11z"/><path d="M17 18.5A1.5 1.5 0 0 0 18.5 17V9h2v8a1.5 1.5 0 0 1-1.5 1.5"/><line x1="7" y1="9" x2="14" y2="9"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="15" x2="11" y2="15"/></svg>更新情報</div>
           <ul class="bell-popover__list">
+            <li><span class="bell-popover__date">2026/10/07</span>動物のアイコンを新しいデザインにしました。</li>
             <li><span class="bell-popover__date">2026/09/25</span>動物園を12園追加し、全47都道府県をカバーしました（合計103園）。</li>
             <li><span class="bell-popover__date">2026/09/23</span>動物園ごとの詳細ページを追加しました。紹介・地図・会える動物をまとめて見られます。</li>
-            <li><span class="bell-popover__date">2026/09/23</span>都道府県別マップを追加しました。日本地図で制覇状況が一目で分かります。</li>
             
           </ul>
           <a href="/updates/" class="bell-popover__more">すべての更新情報を見る →</a>
@@ -801,7 +822,10 @@ def zoo_page(zoo_id: int):
     loc = (z.prefecture or "") + (z.city or "")
 
     animals = [(ic, lb) for key, ic, lb in _ZOO_ANIMALS if getattr(z, key, False)]
-    animals_html = "".join(f'<span class="zoo-animal">{ic} {lb}</span>' for ic, lb in animals)
+    animals_html = "".join(
+        f'<span class="zoo-animal">{_creature_icon_html(key, ic)}{lb}</span>'
+        for key, ic, lb in _ZOO_ANIMALS if getattr(z, key, False)
+    )
 
     # 愛称（例:「のんほいパーク」）。検索エンジン向けに本文と説明文へ入れる
     aliases = get_aliases(z.name)
@@ -954,7 +978,7 @@ def zoo_page(zoo_id: int):
   <meta name="theme-color" content="#2d6a4f">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   {ld}
-  <link rel="stylesheet" href="/styles.css?v=20260923-1">
+  <link rel="stylesheet" href="/styles.css?v=20261007-1">
   <style>
     /* ヘッダー常時固定（他ページと揃える） */
     header {{
@@ -975,7 +999,9 @@ def zoo_page(zoo_id: int):
     .zoo-maplink {{ font-size: 12px; margin: 4px 0 0; }}
     .zoo-animals {{ display: flex; flex-wrap: wrap; gap: 7px; margin: 8px 0 4px; }}
     .zoo-animal {{ background: #f2f8f4; border: 1px solid #d5e3d9; border-radius: 999px;
-                 padding: 4px 12px; font-size: 13.5px; }}
+                 padding: 4px 12px; font-size: 13.5px;
+                 display: inline-flex; align-items: center; gap: 5px; }}
+    .zoo-animal .creature-icon {{ color: #2d6a4f; }}
     .zoo-cta {{ display: block; width: 100%; text-align: center; background: #2d6a4f; color: #fff;
               padding: 13px; border-radius: 12px; font-weight: 700; text-decoration: none; margin: 22px 0;
               border: none; font-size: 15px; font-family: inherit; cursor: pointer; }}
