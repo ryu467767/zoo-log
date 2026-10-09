@@ -2499,3 +2499,7 @@ body.lb-open { overflow: hidden; }
 }
 .card-animal-tag { gap: 3px; }
 .filter-check-label .creature-icon { width: 20px; height: 20px; color: #2d6a4f; }
+
+/* バッジ・ボタン・見出しの中の線画アイコン */
+.badge .creature-icon { margin-right: 3px; }
+#animalSearchBtn .creature-icon, .modal-title .creature-icon { width: 18px; height: 18px; margin-right: 4px; }

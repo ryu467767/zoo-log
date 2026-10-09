@@ -946,7 +946,15 @@ function renderBadges(items) {
     if (b.cat === "animal") cls += " animal-badge";
     div.className = cls;
     div.title = b.label;
-    div.textContent = b.icon + " " + b.label;
+    // 動物バッジは web/creature-icons.js の線画アイコンにする（id: a_red_panda_3 → has_red_panda）
+    const creatureKey = b.cat === "animal" ? "has_" + b.id.replace(/^a_/, "").replace(/_(\d+|all)$/, "") : "";
+    const creatureIcon = creatureKey && window.creatureSvg ? window.creatureSvg(creatureKey) : "";
+    if (creatureIcon) {
+      div.innerHTML = creatureIcon;
+      div.appendChild(document.createTextNode(b.label));
+    } else {
+      div.textContent = b.icon + " " + b.label;
+    }
     el.appendChild(div);
   }
 
@@ -1595,9 +1603,9 @@ function updateFilterBadge() {
   const animalBtn = document.getElementById('animalSearchBtn');
   if (animalBtn) {
     animalBtn.classList.toggle('has-filter', selectedAnimals.size > 0);
-    animalBtn.textContent = selectedAnimals.size > 0
-      ? ('🐘 動物 (' + selectedAnimals.size + '件選択)')
-      : '🐘 動物から探す';
+    animalBtn.innerHTML = (window.creatureSvg ? window.creatureSvg("has_elephant") : "") + (selectedAnimals.size > 0
+      ? ('動物 (' + selectedAnimals.size + '件選択)')
+      : '動物から探す');
   }
   // 絞り込みボタンラベル
   const filterLabelEl = document.getElementById('filterBtnLabel');

@@ -6,7 +6,8 @@
   <title>ミッション｜全国動物園スタンプラリー</title>
   <meta name="description" content="全国動物園スタンプラリーのミッションページ。訪問数バッジ・地域制覇・都道府県制覇・動物バッジの達成状況を確認できます。">
   <link rel="canonical" href="https://zoo-log.onrender.com/missions/">
-  <link rel="stylesheet" href="/styles.css?v=20261007-1" />
+  <link rel="stylesheet" href="/styles.css?v=20261010-1" />
+  <script src="/creature-icons.js?v=20261010-1"></script>
   <style>
     .missions-wrap { max-width: 700px; margin: 24px auto; padding: 0 16px; }
     .missions-title { font-size: 22px; font-weight: bold; margin-bottom: 6px; }
@@ -60,7 +61,8 @@
     .animal-group { border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
     .animal-group-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #fafafa; cursor: default; }
     .animal-group.has-earned .animal-group-header { background: #f1f8e9; }
-    .animal-group-icon { font-size: 22px; flex-shrink: 0; }
+    .animal-group-icon { font-size: 22px; flex-shrink: 0; display: inline-flex; color: #2d6a4f; }
+    .animal-group-icon .creature-icon { width: 24px; height: 24px; }
     .animal-group-name { font-weight: bold; font-size: 14px; flex: 1; color: #555; }
     .animal-group.has-earned .animal-group-name { color: #33691e; }
     .animal-stars { letter-spacing: 1px; font-size: 14px; color: #66bb6a; flex-shrink: 0; }
@@ -322,16 +324,16 @@
       list4.className = "badge-list";
 
       var ANIMAL_GROUPS = [
-        { name: "ゾウ",           icon: "🐘" },
-        { name: "キリン",         icon: "🦒" },
-        { name: "ライオン",       icon: "🦁" },
-        { name: "トラ",           icon: "🐯" },
-        { name: "パンダ",         icon: "🐼" },
-        { name: "ゴリラ",         icon: "🦍" },
-        { name: "カバ",           icon: "🦛" },
-        { name: "コアラ",         icon: "🐨" },
-        { name: "ホッキョクグマ", icon: "🐻‍❄️" },
-        { name: "レッサーパンダ", icon: "🦊" },
+        { name: "ゾウ",           key: "has_elephant" },
+        { name: "キリン",         key: "has_giraffe" },
+        { name: "ライオン",       key: "has_lion" },
+        { name: "トラ",           key: "has_tiger" },
+        { name: "パンダ",         key: "has_panda" },
+        { name: "ゴリラ",         key: "has_gorilla" },
+        { name: "カバ",           key: "has_hippo" },
+        { name: "コアラ",         key: "has_koala" },
+        { name: "ホッキョクグマ", key: "has_polar_bear" },
+        { name: "レッサーパンダ", key: "has_red_panda" },
       ];
 
       ANIMAL_GROUPS.forEach(function(group) {
@@ -351,7 +353,7 @@
         groupDiv.className = "animal-group" + (hasEarned ? " has-earned" : "");
         groupDiv.innerHTML =
           '<div class="animal-group-header">' +
-            '<span class="animal-group-icon">' + group.icon + '</span>' +
+            '<span class="animal-group-icon">' + (window.creatureSvg ? window.creatureSvg(group.key) : "") + '</span>' +
             '<span class="animal-group-name">' + group.name + '</span>' +
             '<span class="animal-stars">' + stars + '</span>' +
             '<span class="animal-current">' + (hasEarned ? highestEarned.label : (loggedIn ? "未達成" : "-")) + '</span>' +

@@ -978,7 +978,7 @@ def zoo_page(zoo_id: int):
   <meta name="theme-color" content="#2d6a4f">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   {ld}
-  <link rel="stylesheet" href="/styles.css?v=20261007-1">
+  <link rel="stylesheet" href="/styles.css?v=20261010-1">
   <style>
     /* ヘッダー常時固定（他ページと揃える） */
     header {{
