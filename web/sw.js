@@ -1,5 +1,5 @@
 // Service Worker - 全国動物園スタンプラリー
-const CACHE_NAME = 'zoo-v1';
+const CACHE_NAME = 'zoo-v2';
 
 // キャッシュするアプリシェル（バージョンはアクセス時に自動更新）
 const APP_SHELL = [
@@ -46,6 +46,21 @@ self.addEventListener('fetch', e => {
 
   // 外部リソース（Leaflet CDN など）はネットワーク優先、フォールバックなし
   if (url.origin !== location.origin) return;
+
+  // HTMLページ（ナビゲーション）は常にネットワークを優先し、
+  // オフライン時のみキャッシュにフォールバック（古いHTMLが表示され続ける不具合の対策）
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res && res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
 
   // 同一オリジンの静的リソース: キャッシュ優先 → ネットワーク取得 & キャッシュ更新
   e.respondWith(
