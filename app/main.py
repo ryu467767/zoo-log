@@ -19,7 +19,8 @@ from authlib.integrations.starlette_client import OAuth
 from fastapi import UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field as PField, field_validator
+import re as _re
 from sqlmodel import select
 from sqlalchemy import func
 from .db import init_db, session
@@ -34,6 +35,7 @@ from .zoo_aliases import get_aliases
 from pathlib import Path
 from fastapi.responses import FileResponse, HTMLResponse
 from uuid import uuid4
+from .photo_privacy import strip_metadata, strip_existing_uploads
 from collections import deque
 
 
@@ -42,6 +44,15 @@ from collections import deque
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-secret-change-me")
 DEBUG_ERRORS = os.getenv("DEBUG_ERRORS", "").lower() in ("1", "true", "yes")
+IS_PRODUCTION = BASE_URL.startswith("https://")
+# 本番では、エラーの中身（例外メッセージ）を画面に返さない。原因は Render の Logs で見る。
+if IS_PRODUCTION:
+    DEBUG_ERRORS = False
+# 本番でセッション鍵が未設定（だれでも知っている初期値）のまま動かさない。
+# 未設定なら起動ごとの使い捨ての鍵にする（再起動でログアウトされるが、なりすましは防げる）。
+if IS_PRODUCTION and (SESSION_SECRET == "dev-secret-change-me" or len(SESSION_SECRET) < 16):
+    print("[SECURITY] SESSION_SECRET が未設定か短すぎます。一時的な鍵で起動します。Render の環境変数に設定してください。")
+    SESSION_SECRET = secrets.token_urlsafe(48)
 BUILD = os.getenv("BUILD", "dev")
 # ★ローカル検証専用のテストログインを許可するか。
 #   本番(render.yaml)ではこの環境変数を設定しない＝常に False。絶対に本番で有効化しないこと。
@@ -111,18 +122,29 @@ def _hit(key: str, limit: int, window_sec: int) -> bool:
     q.append(now)
     return True
 
+def client_ip(request: Request) -> str:
+    """接続元IP。Cloudflare が付ける CF-Connecting-IP（利用者が偽装できない）を優先する"""
+    cf = (request.headers.get("cf-connecting-ip") or "").strip()
+    if cf:
+        return cf
+    return request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
         # 対象を絞る（APIと認証のみ）
         if path.startswith("/api/") or path.startswith("/auth/"):
-            ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+            ip = client_ip(request)
 
             # ルール：写真アップロードは厳しめ
             # ただし一括アップロードは「動物園1園＝1リクエスト」なので、
             # 複数園まとめて追加すると10回ではすぐ足りなくなる。別枠で少し緩める。
-            if request.method == "POST" and path.endswith("/photos/bulk"):
+            # お問い合わせは迷惑投稿対策でかなり厳しめ（10分に5回まで）
+            if request.method == "POST" and path == "/api/public/contact":
+                ok = _hit(f"contact:{ip}", limit=5, window_sec=600)
+            elif request.method == "POST" and path.endswith("/photos/bulk"):
                 ok = _hit(f"upbulk:{ip}", limit=30, window_sec=60)  # 1分30回
             elif request.method == "POST" and "/photos" in path:
                 ok = _hit(f"up:{ip}", limit=10, window_sec=60)  # 1分10回
@@ -203,6 +225,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # 余計な機能を制限（必要なら後で緩める）
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
 
+        # 読み込んでよい場所を限定する（CSP）。万一不正なスクリプトが入っても、
+        # 外部のサーバーへ個人情報を送れないようにする（connect-src を自サイト＋アクセス解析だけに）。
+        # 外部サービスを増やすときは、ここにも追加すること。
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com; connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://www.google.com; font-src 'self' data:; frame-src https://www.openstreetmap.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+        )
+        # ログイン中の情報を返すAPIは、ブラウザや途中のサーバーに保存させない
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+
         return response
 
 # ===== middleware order (IMPORTANT) =====
@@ -225,8 +257,27 @@ app.add_middleware(SecurityHeadersMiddleware)
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/data/uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# /uploads/... で画像を返せるようにする
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+# /uploads/... の写真は「アップロードした本人」と管理者だけが見られる。
+# X共有用の画像（_share/）だけは、だれでも見られる（Xのカードに表示するため）。
+_UPLOAD_ROOT = os.path.realpath(UPLOAD_DIR)
+
+
+@app.get("/uploads/{file_path:path}", include_in_schema=False)
+def serve_upload(file_path: str, request: Request):
+    abs_path = os.path.realpath(os.path.join(UPLOAD_DIR, file_path))
+    # フォルダの外を指すパス（../ など）は見せない
+    if not abs_path.startswith(_UPLOAD_ROOT + os.sep) or not os.path.isfile(abs_path):
+        raise HTTPException(404, "Not found")
+    rel = os.path.relpath(abs_path, _UPLOAD_ROOT).replace("\\", "/")
+    top = rel.split("/", 1)[0]
+    if top == "_share":
+        return FileResponse(abs_path, headers={"Cache-Control": "public, max-age=86400"})
+    uid = (request.session.get("user_id") or "").strip()
+    admin_uid = os.getenv("ADMIN_USER_ID", "")
+    if not uid or (top != uid.replace(":", "_") and uid != admin_uid):
+        # 他人の写真があるかどうかも分からないよう、404 にする
+        raise HTTPException(404, "Not found")
+    return FileResponse(abs_path, headers={"Cache-Control": "private, max-age=86400"})
 
 BASE_DIR = Path(__file__).resolve().parent
 CANDIDATES = [
@@ -264,6 +315,9 @@ async def geocode(query: str):
 @app.on_event("startup")
 def on_startup():
     init_db()
+    # すでに保存されている写真からも、撮影場所（GPS）などを1回だけ消す（起動を遅らせないよう裏で）
+    import threading
+    threading.Thread(target=strip_existing_uploads, args=(UPLOAD_DIR,), daemon=True).start()
     # CSV_PATH を設定しておくと、起動のたびにCSVの内容を取り込む。
     #
     # 以前は「DBが空のときだけ」取り込む作りだったが、それだと本番の
@@ -283,14 +337,19 @@ def on_startup():
             pass
 
 @app.get("/debug/build")
-def debug_build():
+def debug_build(request: Request):
+    # 設定の中身は管理者だけに見せる（だれでも見られるのはビルド名だけ）
+    try:
+        require_admin(request)
+    except HTTPException:
+        return {"build": BUILD}
     return {"build": BUILD, "base_url": BASE_URL, "debug_errors": DEBUG_ERRORS}
 
 class VisitToggleIn(BaseModel):
     visited: bool
 
 class NoteIn(BaseModel):
-    note: str
+    note: str = PField(max_length=2000)
 
 class VisitedAtIn(BaseModel):
     visited_at: Optional[str] = None  # "YYYY-MM-DD" または null
@@ -302,14 +361,15 @@ class WantToGoIn(BaseModel):
     want_to_go: bool
 
 class VisitDatesIn(BaseModel):
-    visit_dates: list[str]
+    visit_dates: list[str] = PField(max_length=500)
 
 @app.get("/api/health")
 def health():
     return {"ok": True}
 
 @app.get("/debug/oauth")
-def debug_oauth():
+def debug_oauth(request: Request):
+    require_admin(request)  # 管理者だけ
     cid = os.getenv("GOOGLE_CLIENT_ID")
     csec = os.getenv("GOOGLE_CLIENT_SECRET")
     return {
@@ -1273,6 +1333,8 @@ async def upload_photo(zoo_id: int, request: Request, file: UploadFile = File(..
     if not looks_like_image(data):
         raise HTTPException(400, "Invalid image file")
 
+    # 撮影場所（GPS）などの個人情報を消してから保存する
+    data = strip_metadata(data)
     with open(abs_path, "wb") as f:
         f.write(data)
 
@@ -1345,6 +1407,8 @@ async def upload_photos_bulk(zoo_id: int, request: Request,
                 continue
 
             fname = f"{uuid4().hex}{ext}"
+            # 撮影場所（GPS）などの個人情報を消してから保存する
+            data = strip_metadata(data)
             with open(os.path.join(abs_dir, fname), "wb") as out:
                 out.write(data)
 
@@ -1393,9 +1457,17 @@ def delete_photo(zoo_id: int, photo_id: int, request: Request):
 # ===== Contact (お問い合わせ) =====
 
 class InquiryIn(BaseModel):
-    name: str
-    email: str
-    message: str
+    name: str = PField(min_length=1, max_length=100)
+    email: str = PField(min_length=3, max_length=254)
+    message: str = PField(min_length=1, max_length=5000)
+
+    @field_validator("email")
+    @classmethod
+    def _check_email(cls, v: str) -> str:
+        v = v.strip()
+        if not _re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", v):
+            raise ValueError("invalid email")
+        return v
 
 
 @app.post("/api/public/contact")
