@@ -85,10 +85,36 @@ def get_user_id(request: Request) -> str:
         raise HTTPException(401, "Not logged in")
     return uid
 
+# 「最後にサイトを使った日時」を記録した日（user_id -> 日付）。DBへの書き込みを1人1日1回に抑える
+_last_seen_day: dict = {}
+
+def touch_last_seen(request: Request) -> None:
+    """ログイン中の人がAPIを呼んだら、UserProfile.last_seen_at を1日1回だけ更新する"""
+    if not request.url.path.startswith("/api/"):
+        return
+    uid = (request.session.get("user_id") or "").strip()
+    if not uid:
+        return
+    now = datetime.utcnow()
+    if _last_seen_day.get(uid) == now.date():
+        return
+    _last_seen_day[uid] = now.date()
+    try:
+        with session() as db:
+            p = db.get(UserProfile, uid)
+            if p:
+                p.last_seen_at = now
+                db.add(p)
+                db.commit()
+    except Exception:
+        # 記録に失敗しても、本来の処理は止めない
+        traceback.print_exc()
+
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         try:
             require_key(request)
+            touch_last_seen(request)
             return await call_next(request)
         except HTTPException as e:
             return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
@@ -1492,7 +1518,9 @@ def get_admin_stats(request: Request):
     cutoff = datetime.utcnow() - timedelta(days=30)
     with session() as db:
         total_users  = len(db.exec(select(UserProfile)).all())
-        active_users = len(db.exec(select(UserProfile).where(UserProfile.last_login_at >= cutoff)).all())
+        # 最後にサイトを使った日（未記録の人は最終ログイン日）で数える
+        last_active = func.coalesce(UserProfile.last_seen_at, UserProfile.last_login_at)
+        active_users = len(db.exec(select(UserProfile).where(last_active >= cutoff)).all())
         total_zoos   = len(db.exec(select(Zoo)).all())
         total_visits = len(db.exec(select(Visit).where(Visit.visited == True)).all())
         total_want   = len(db.exec(select(Visit).where(Visit.want_to_go == True)).all())
@@ -1567,7 +1595,9 @@ def get_users(request: Request):
     require_admin(request)
     with session() as db:
         users = db.exec(
-            select(UserProfile).order_by(UserProfile.last_login_at.desc())
+            select(UserProfile).order_by(
+                func.coalesce(UserProfile.last_seen_at, UserProfile.last_login_at).desc()
+            )
         ).all()
 
         # 訪問済・行きたい件数をユーザーごとに集計
@@ -1598,6 +1628,7 @@ def get_users(request: Request):
                 "login_count":   u.login_count,
                 "created_at":    u.created_at.isoformat(),
                 "last_login_at": u.last_login_at.isoformat(),
+                "last_seen_at":  u.last_seen_at.isoformat() if u.last_seen_at else None,
                 "visited_count": visit_map.get(u.user_id, 0),
                 "want_count":    want_map.get(u.user_id, 0),
                 "photo_count":   photo_map.get(u.user_id, 0),

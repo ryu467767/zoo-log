@@ -68,6 +68,8 @@ class UserProfile(SQLModel, table=True):
     login_count: int = Field(default=0)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_login_at: datetime = Field(default_factory=datetime.utcnow)
+    # 最後にサイトを使った日時（ログイン中にAPIを呼ぶと1日1回更新。未記録は None）
+    last_seen_at: Optional[datetime] = None
 
 
 class Inquiry(SQLModel, table=True):

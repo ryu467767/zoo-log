@@ -366,14 +366,15 @@
             <th>名前</th>
             <th>ログイン回数</th>
             <th class="hide-sm">登録日</th>
-            <th>最終ログイン</th>
+            <th>最終利用</th>
+            <th class="hide-sm">最終ログイン</th>
             <th>訪問済</th>
             <th>行きたい</th>
             <th>写真</th>
           </tr>
         </thead>
         <tbody id="usersBody">
-          <tr class="row-info"><td colspan="8">読み込み中...</td></tr>
+          <tr class="row-info"><td colspan="9">読み込み中...</td></tr>
         </tbody>
       </table>
     </div>
@@ -520,11 +521,11 @@
   async function loadUsers() {
     if (usersLoaded) return;
     const tbody = document.getElementById('usersBody');
-    tbody.innerHTML = '<tr class="row-info"><td colspan="8">読み込み中...</td></tr>';
+    tbody.innerHTML = '<tr class="row-info"><td colspan="9">読み込み中...</td></tr>';
 
     const users = await fetch('/api/admin/users').then(r => r.json());
     if (!users.length) {
-      tbody.innerHTML = '<tr class="row-info"><td colspan="8">ユーザーはいません</td></tr>';
+      tbody.innerHTML = '<tr class="row-info"><td colspan="9">ユーザーはいません</td></tr>';
       return;
     }
 
@@ -534,7 +535,8 @@
         <td style="font-weight:bold;color:#1e293b;">${esc(u.name || '不明')}</td>
         <td style="color:#059669;font-weight:bold;">${u.login_count} 回</td>
         <td class="hide-sm" style="color:#94a3b8;">${fmtDate(u.created_at)}</td>
-        <td style="color:#94a3b8;">${fmtDate(u.last_login_at)}</td>
+        <td style="color:#94a3b8;">${u.last_seen_at ? fmtDate(u.last_seen_at) : '記録前'}</td>
+        <td class="hide-sm" style="color:#94a3b8;">${fmtDate(u.last_login_at)}</td>
         <td style="font-weight:bold;color:#2d6a4f;">${u.visited_count} 園</td>
         <td style="color:#e65100;">${u.want_count} 園</td>
         <td style="color:#64748b;">${u.photo_count} 枚</td>
