@@ -866,6 +866,7 @@ ZOO_DRAWER = """
       <hr class="drawer-divider">
       <div class="drawer-section-label">姉妹サイト</div>
       <a href="https://aquarium-log.onrender.com/" class="drawer-link" target="_blank" rel="noopener">🐟 全国水族館スタンプラリー</a>
+      <a href="https://dormy-log.soryushi.jp/" class="drawer-link" target="_blank" rel="noopener">♨️ 全国ドーミーインスタンプラリー</a>
     </div>
   </nav>
 """
@@ -876,6 +877,7 @@ ZOO_FOOTER = """
       <a href="/contact/">お問い合わせ</a>
       <a href="/privacy/">プライバシーポリシー</a>
       <a href="https://aquarium-log.onrender.com/" target="_blank" rel="noopener noreferrer">🐟 全国水族館スタンプラリー</a>
+      <a href="https://dormy-log.soryushi.jp/" target="_blank" rel="noopener noreferrer">♨️ 全国ドーミーインスタンプラリー</a>
       <span>© 2025 全国動物園スタンプラリー</span>
     </div>
   </footer>
