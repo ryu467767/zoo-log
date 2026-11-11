@@ -1552,7 +1552,9 @@ header {
   margin-top: 44px;
 }
 .drawer-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   padding: 11px 14px;
   border-radius: 10px;
   text-decoration: none;
@@ -2503,3 +2505,7 @@ body.lb-open { overflow: hidden; }
 /* バッジ・ボタン・見出しの中の線画アイコン */
 .badge .creature-icon { margin-right: 3px; }
 #animalSearchBtn .creature-icon, .modal-title .creature-icon { width: 18px; height: 18px; margin-right: 4px; }
+
+/* ===== フッターの姉妹サイトリンク（線画アイコン付き） ===== */
+.site-footer a{ display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.site-footer a .nav-icon{ width:16px; height:16px; }
