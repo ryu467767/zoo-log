@@ -50,7 +50,7 @@ name,prefecture,city,location_raw,url,mola_star,lat,lng,has_elephant,has_giraffe
 伊豆シャボテン動物公園,静岡県,伊東市,,http://www.shaboten.co.jp/,0,,,False,False,False,False,False,False,False,False,False,False,False,
 熱川バナナワニ園,静岡県,賀茂郡東伊豆町,,http://bananawani.jp/,0,,,False,False,False,False,False,False,False,False,False,False,False,
 静岡市立日本平動物園,静岡県,静岡市駿河区,,http://www.nhdzoo.jp/,0,,,False,False,False,False,False,False,False,False,False,False,False,
-浜松市動物園,静岡県,浜松市西区,,http://www.hamazoo.net/,0,,,False,False,False,False,False,False,False,False,False,False,False,
+浜松市動物園,静岡県,浜松市中央区,,http://www.hamazoo.net/,0,,,False,False,False,False,False,False,False,False,False,False,False,
 豊橋総合動植物公園,愛知県,豊橋市,,https://www.nonhoi.jp/,0,,,False,False,False,False,False,False,False,False,False,False,False,
 名古屋市東山動物園,愛知県,名古屋市千種区,,http://www.higashiyama.city.nagoya.jp/,0,,,False,False,False,False,False,False,False,False,False,False,False,
 豊田市鞍ケ池公園,愛知県,豊田市,,http://www.city.toyota.aichi.jp/shisetsu/sports/kouen/1007430/index.html,0,,,False,False,False,False,False,False,False,False,False,False,False,
